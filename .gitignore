@@ -1,0 +1,18 @@
+# Dependências: 261MB nos dois projetos juntos. Entram no commit inicial e
+# ficam no histórico para sempre — apagar depois não recupera o espaço.
+node_modules/
+
+# Build do painel. É gerado a partir do fonte a cada deploy; versionar dois
+# artefatos do mesmo código é convite para eles divergirem.
+dashboard/dist/
+
+# Segredos. Listados antes de existirem, de propósito: no dia em que o .env de
+# produção for criado, ele já nasce ignorado. Credencial que chega ao histórico
+# precisa ser TROCADA, não removida — quem clonou antes continua com ela.
+.env
+.env.*
+!.env.example
+
+# Saída de execução local
+*.log
+npm-debug.log*

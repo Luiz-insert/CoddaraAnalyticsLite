@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Public Sans', system-ui, sans-serif; }
+    a { color: #111111; } a:hover { color: #e4451f; }
+    .lbl { font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; color: #8c8c8c; }
+    .nav { padding: 8px 0; font-size: 14px; color: #5c5c5c; }
+    .nav-on { color: #111111; font-weight: 500; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 20px; padding: 13px 0; border-bottom: 1px solid #ededed; font-size: 14px; }
+    .row:last-child { border-bottom: none; }
+    .n { font-variant-numeric: tabular-nums; color: #5c5c5c; }
+    .per { padding: 7px 16px; font-size: 13px; border: 1px solid #ededed; border-left: none; color: #5c5c5c; }
+    .per:first-child { border-left: 1px solid #ededed; }
+    .per-on { background: #111111; border-color: #111111; color: #ffffff; font-weight: 500; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; min-height: 1080px; background: #ffffff; color: #111111; display: flex; align-items: flex-start;">
+  <div style="width: 248px; flex-shrink: 0; border-right: 1px solid #ededed; padding: 36px 30px; display: flex; flex-direction: column;">
+    <div style="display: flex; align-items: center; gap: 11px; margin-bottom: 44px;">
+      <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="#111111" stroke-width="3" stroke-dasharray="0.1 5" stroke-linecap="round"/></svg>
+      <div style="font-size: 15px; font-weight: 600; letter-spacing: -0.2px;">Coddara Analytics</div>
+    </div>
+    <div class="lbl" style="margin-bottom: 6px;">Relatórios</div>
+    <div class="nav nav-on">Visão geral</div>
+    <div class="lbl" style="margin: 30px 0 6px;">Configuração</div>
+    <div class="nav ">Instalação</div>
+    <div class="nav">API</div>
+    <div style="margin-top: auto; padding-top: 26px; border-top: 1px solid #ededed;">
+      <div class="lbl">Site</div>
+      <div style="font-size: 14px; margin-top: 5px;">Clínica Sorriso</div>
+      <div style="display: flex; gap: 18px; margin-top: 14px; font-size: 13px; color: #8c8c8c;"><span>Tema escuro</span><span>Sair</span></div>
+    </div>
+  </div>
+
+  <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+    <div style="padding: 48px 60px 0; display: flex; align-items: flex-end; justify-content: space-between;">
+      <div>
+        <div class="lbl" style="margin-bottom: 8px;">clinicasorriso.com.br</div>
+        <div style="font-size: 34px; font-weight: 300; letter-spacing: -0.8px; line-height: 1;">Visão geral</div>
+      </div>
+      <div style="display: flex;">
+        <span class="per per-on">7 dias</span><span class="per">30 dias</span><span class="per">90 dias</span>
+      </div>
+    </div>
+
+    <div style="padding: 44px 60px 60px; display: flex; flex-direction: column; gap: 52px;">
+
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #ededed; border: 1px solid #ededed;">
+        <div style="background: #ffffff; padding: 26px 28px;">
+          <div class="lbl" style="margin-bottom: 12px;">Pageviews</div>
+          <div style="font-size: 46px; font-weight: 300; line-height: 1; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; color: #e4451f;">1.284</div>
+        </div>
+        <div style="background: #ffffff; padding: 26px 28px;">
+          <div class="lbl" style="margin-bottom: 12px;">Visitantes</div>
+          <div style="font-size: 46px; font-weight: 300; line-height: 1; letter-spacing: -1.5px; font-variant-numeric: tabular-nums;">847</div>
+        </div>
+        <div style="background: #ffffff; padding: 26px 28px;">
+          <div class="lbl" style="margin-bottom: 12px;">Sessões</div>
+          <div style="font-size: 46px; font-weight: 300; line-height: 1; letter-spacing: -1.5px; font-variant-numeric: tabular-nums;">612</div>
+        </div>
+      </div>
+
+      <div>
+        <div style="display: flex; justify-content: space-between; padding-bottom: 20px; border-bottom: 1px solid #111111;" class="lbl">
+          <span>Pageviews por dia</span><span>Últimos 7 dias</span>
+        </div>
+        <div style="padding-top: 22px;">
+      <svg viewBox="0 0 1072 232" style="width: 100%; height: auto; display: block;" role="img" aria-label="Pageviews por dia nos últimos 7 dias, subindo de 118 para 294.">
+        <!-- Eixo: uma linha de base e nada mais. Grade seria ruído numa série só. -->
+        <line x1="60" y1="180" x2="1020" y2="180" stroke="#ededed" stroke-width="1"/>
+
+        <!-- Marca do topo da escala, rotulada: todo rótulo nomeia um valor que o gráfico alcança. -->
+        <line x1="60" y1="30" x2="1020" y2="30" stroke="#ededed" stroke-width="1" stroke-dasharray="2 4"/>
+        <text x="60" y="22" font-size="11" font-weight="600" letter-spacing="0.9" fill="#8c8c8c">300</text>
+
+        <path d="M60,121 L220,109 L380,114.5 L540,85.5 L700,96.5 L860,58.5 L1020,33 L1020,180 L60,180 Z" fill="#e4451f" fill-opacity="0.07"/>
+        <path d="M60,121 L220,109 L380,114.5 L540,85.5 L700,96.5 L860,58.5 L1020,33" fill="none" stroke="#e4451f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+
+        <!-- Ponto final destacado e rotulado: é o dado mais recente, o que se olha primeiro. -->
+        <circle cx="1020" cy="33" r="5" fill="#e4451f"/>
+        <circle cx="1020" cy="33" r="5" fill="none" stroke="#ffffff" stroke-width="2"/>
+        <text x="1020" y="18" font-size="13" font-weight="500" text-anchor="end" fill="#111111">294</text>
+
+        <!-- Camada de hover, desenhada num ponto para mostrar como ela se comporta. -->
+        <line x1="860" y1="30" x2="860" y2="180" stroke="#8c8c8c" stroke-width="1" stroke-dasharray="3 3"/>
+        <circle cx="860" cy="58.5" r="4" fill="#ffffff" stroke="#e4451f" stroke-width="2"/>
+        <g>
+          <rect x="762" y="8" width="196" height="42" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+          <text x="774" y="26" font-size="11" font-weight="600" letter-spacing="0.9" fill="#8c8c8c">15 SET</text>
+          <text x="946" y="26" font-size="13" text-anchor="end" fill="#111111">243</text>
+          <text x="774" y="42" font-size="12" fill="#5c5c5c">pageviews</text>
+        </g>
+
+        <text x="60"   y="204" font-size="12" text-anchor="middle" fill="#5c5c5c">10</text>
+        <text x="220"  y="204" font-size="12" text-anchor="middle" fill="#5c5c5c">11</text>
+        <text x="380"  y="204" font-size="12" text-anchor="middle" fill="#5c5c5c">12</text>
+        <text x="540"  y="204" font-size="12" text-anchor="middle" fill="#5c5c5c">13</text>
+        <text x="700"  y="204" font-size="12" text-anchor="middle" fill="#5c5c5c">14</text>
+        <text x="860"  y="204" font-size="12" text-anchor="middle" fill="#5c5c5c">15</text>
+        <text x="1020" y="204" font-size="12" text-anchor="middle" fill="#5c5c5c">16</text>
+        <text x="1020" y="226" font-size="11" font-weight="600" letter-spacing="0.9" text-anchor="end" fill="#8c8c8c">SETEMBRO</text>
+      </svg>
+
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 60px;">
+        <div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid #111111;" class="lbl"><span>Páginas</span><span>Views</span></div>
+          <div class="row"><span>/promocao-clareamento</span><span class="n">612</span></div>
+          <div class="row"><span>/</span><span class="n">431</span></div>
+          <div class="row"><span>/implantes</span><span class="n">128</span></div>
+          <div class="row"><span>/sobre</span><span class="n">73</span></div>
+        </div>
+        <div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid #111111;" class="lbl"><span>Origem</span><span>Visitantes</span></div>
+          <div class="row"><span>instagram.com</span><span class="n">389</span></div>
+          <div class="row"><span>Direto</span><span class="n">241</span></div>
+          <div class="row"><span>google.com</span><span class="n">158</span></div>
+          <div class="row"><span>meta · setembro</span><span class="n">47</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

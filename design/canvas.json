@@ -1,0 +1,15 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",       "x": 0,    "y": 0,    "w": 1440, "h": 1080, "title": "Visão geral" },
+    { "file": "Escuro.dc.html",     "x": 1560, "y": 0,    "w": 1440, "h": 1080, "title": "Visão geral — tema escuro" },
+    { "file": "Login.dc.html",      "x": 3120, "y": 0,    "w": 1440, "h": 900,  "title": "Login" },
+    { "file": "Instalacao.dc.html", "x": 4680, "y": 0,    "w": 1440, "h": 900,  "title": "Instalação" }
+  ],
+  "annotations": [
+    { "id": "nota-direcao", "x": 0, "y": -180, "w": 900, "text": "Direção suíça — definida. Grade, muito espaço vazio, hierarquia por peso e fio fino.\n\nUma cor só, usada uma vez: no número de pageviews e na linha do gráfico que o detalha. Vermelho em mais lugares seria não destacar nenhum." },
+    { "id": "nota-grafico", "x": 0, "y": 1130, "w": 500, "text": "GRÁFICO — uma série, sem legenda\n\nPageviews por dia. Série única dispensa legenda: o título já a nomeia.\n\nSem grade: com uma linha só, ela seria ruído. O que existe é a base, um tracejado no topo da escala rotulado com o valor que ele marca, e o último ponto destacado — é o dado mais recente, o que se olha primeiro.\n\nO tooltip está desenhado num ponto para mostrar a camada de hover.\n\nOs sete dias somam 1.284, o mesmo total do card." },
+    { "id": "nota-escuro", "x": 1560, "y": 1130, "w": 460, "text": "TEMA ESCURO — escolhido, não invertido\n\nFundo #0e0e10, não preto puro: preto absoluto vibra contra texto claro.\n\nO vermelho sobe de #e4451f para #f2643d — o tom do claro fica abafado sobre fundo escuro e perderia o papel de destacar." },
+    { "id": "nota-inst", "x": 4680, "y": 950, "w": 460, "text": "INSTALAÇÃO\n\nO cartão de diagnóstico usa a única cor do painel. É o que transforma o erro mais comum de instalação em autoatendimento: a maioria das ferramentas mostra silêncio quando a origem não bate." }
+  ],
+  "launch": { "view": "canvas" }
+}

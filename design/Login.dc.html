@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Public Sans', system-ui, sans-serif; }
+    a { color: #111111; } a:hover { color: #e4451f; }
+    .lbl { font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; color: #8c8c8c; }
+    .campo { border: 1px solid #ededed; padding: 12px 14px; font-size: 14px; color: #8c8c8c; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 900px; background: #ffffff; color: #111111; display: grid; place-items: center;">
+  <div style="width: 360px;">
+
+    <div style="display: flex; align-items: center; gap: 11px; margin-bottom: 52px;">
+      <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="#111111" stroke-width="3" stroke-dasharray="0.1 5" stroke-linecap="round"/></svg>
+      <div style="font-size: 15px; font-weight: 600; letter-spacing: -0.2px;">Coddara Analytics</div>
+    </div>
+
+    <div style="font-size: 34px; font-weight: 300; letter-spacing: -0.8px; line-height: 1; margin-bottom: 10px;">Entrar</div>
+    <div style="font-size: 14px; color: #5c5c5c; margin-bottom: 40px;">Acesse os dados do seu site.</div>
+
+    <div class="lbl" style="margin-bottom: 7px;">E-mail</div>
+    <div class="campo" style="margin-bottom: 22px;">voce@clinica.com.br</div>
+
+    <div class="lbl" style="margin-bottom: 7px;">Senha</div>
+    <div class="campo" style="margin-bottom: 30px; color: #111111; letter-spacing: 3px;">••••••••••</div>
+
+    <div style="background: #111111; color: #ffffff; text-align: center; padding: 12px; font-size: 14px; font-weight: 500;">Entrar</div>
+
+    <div style="display: flex; justify-content: space-between; margin-top: 26px; padding-top: 20px; border-top: 1px solid #ededed; font-size: 13px; color: #5c5c5c;">
+      <span>Criar conta</span><span>Esqueci a senha</span>
+    </div>
+
+    <div class="lbl" style="margin-top: 52px; text-align: center;">Sem cookie no site rastreado</div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

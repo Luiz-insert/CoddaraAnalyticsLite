@@ -1,0 +1,801 @@
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600&display=swap');
+
+/* Direção suíça. Estes valores espelham o theme.js — o tema veste os
+   componentes do MUI, isto aqui veste o que ainda é marcação própria. */
+:root {
+    --bg:        #ffffff;
+    --ink:       #111111;
+    --muted:     #5c5c5c;
+    --faint:     #8c8c8c;
+    --line:      #ededed;
+    --campo:     #8c8c8c;
+    --accent:    #e4451f;
+    --erro:      #c02b1d;
+    --code:      #fafafa;
+}
+
+/* Sem escolha explícita, segue o sistema. Com escolha, o data-theme no <html>
+   vence — nos dois sentidos, por isso os dois blocos abaixo. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg:     #0e0e10;
+        --ink:    #ededed;
+        --muted:  #a0a0a4;
+        --faint:  #6e6e74;
+        --line:   #262629;
+        --campo:  #6e6e74;
+        --accent: #f2643d;
+        --erro:   #e06054;
+        --code:   #17171a;
+    }
+}
+
+:root[data-theme="dark"] {
+    --bg:     #0e0e10;
+    --ink:    #ededed;
+    --muted:  #a0a0a4;
+    --faint:  #6e6e74;
+    --line:   #262629;
+    --campo:  #6e6e74;
+    --accent: #f2643d;
+    --erro:   #e06054;
+    --code:   #17171a;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+}
+
+.centered { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+
+/* ─── Formulário ─────────────────────────────────────────────── */
+
+/* Campo próprio, sem biblioteca. O fio é o token --campo e não o --line das
+   tabelas: aquele é um sussurro que separa linhas, este delimita um alvo
+   clicável e precisa dos 3:1 de contraste sozinho. */
+.rotulo {
+    display: block;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase;
+    color: var(--faint); margin-bottom: 6px;
+}
+
+.campo {
+    width: 100%;
+    /* Altura fixa, igual à do botão. Com padding vertical, campo e botão
+       calculam altura por caminhos diferentes — um pela soma de padding mais
+       linha, outro pelo line-height do texto — e o resultado nunca bate. */
+    height: 42px;
+    padding: 0 12px;
+    background: var(--bg);
+    border: 1px solid var(--campo);
+    border-radius: 0;
+    font-family: inherit; font-size: 14px; color: var(--ink);
+}
+.campo::placeholder { color: var(--faint); }
+/* O foco escurece o fio. Sem cor: ela está reservada para o número principal
+   e para erro. */
+.campo:focus { outline: none; border-color: var(--ink); }
+.campo:disabled { color: var(--faint); }
+.campo-erro { border-color: var(--erro); }
+
+/* O Chrome pinta o próprio fundo no autopreenchimento, igual nos dois temas, e
+   background não tem efeito nele. A sombra interna é o único jeito de cobrir. */
+.campo:-webkit-autofill,
+.campo:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 100px var(--bg) inset;
+    -webkit-text-fill-color: var(--ink);
+    caret-color: var(--ink);
+}
+
+.ajuda { font-size: 12px; line-height: 1.5; color: var(--muted); margin-top: 6px; }
+.ajuda-erro { color: var(--erro); }
+
+/* ─── Explicação dos números ─────────────────────────────────── */
+
+.explica-ancora { position: relative; display: inline-flex; }
+
+/* Interrogação discreta ao lado do título. Fio e não preenchimento: ela precisa
+   ser encontrável sem competir com o número, que é o assunto do card. */
+.explica-btn {
+    flex-shrink: 0;
+    width: 16px; height: 16px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: 1px solid var(--line); border-radius: 50%;
+    font-family: inherit; font-size: 10px; font-weight: 600; line-height: 1;
+    color: var(--faint); cursor: pointer;
+}
+/* ':not(.explica-btn-on)' e não uma segunda regra depois: ':hover' conta como
+   classe na especificidade, então ele vencia '.explica-btn-on' e repintava o
+   texto de --ink sobre o fundo --ink — a interrogação sumia justamente com o
+   balão aberto e o mouse em cima dela. */
+.explica-btn:not(.explica-btn-on):hover { border-color: var(--ink); color: var(--ink); }
+.explica-btn-on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+
+/* Flutua por cima: abrir a explicação não muda a altura de nada. O fio é
+   --ink e não --line porque aqui ele separa o balão do conteúdo que ficou
+   embaixo, e não duas faixas do mesmo plano. */
+.explica-balao {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    z-index: 40;
+    width: 330px;
+    max-width: calc(100vw - 32px);
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--bg);
+    border: 1px solid var(--ink);
+    /* O balão herda de onde está ancorado, e ele mora dentro de títulos em
+       versalete. Sem isto, a explicação inteira sai em caixa alta. */
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+    text-align: left;
+    color: var(--ink);
+    cursor: auto;
+}
+/* Ancorado à direita quando abrir para a direita sairia da tela. */
+.explica-balao-esq { left: auto; right: 0; }
+
+.explica-titulo {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase;
+    color: var(--faint);
+}
+
+.explica { display: flex; flex-direction: column; gap: 8px; max-width: 62ch; }
+.explica > span { font-size: 13px; line-height: 1.6; color: var(--ink); }
+.explica-como { color: var(--muted); }
+/* O que o número NÃO diz ganha um fio à esquerda: é a parte que evita a
+   conclusão errada, e a que a pessoa volta para reler. */
+.explica-cuidado { color: var(--muted); border-left: 2px solid var(--line); padding-left: 12px; }
+
+.explica-link {
+    align-self: flex-start;
+    background: none; border: none; padding: 0;
+    font-family: inherit; font-size: 13px; color: var(--ink);
+    text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.explica-link:hover { color: var(--accent); }
+
+.verbete { padding: 20px 0; border-bottom: 1px solid var(--line); transition: none; }
+/* Fio à esquerda em cor, por dois segundos e meio: é o "você caiu aqui" de quem
+   chegou pelo balão. Sem ele, o meio de uma página de catorze verbetes é
+   indistinguível do começo. */
+.verbete-alvo { border-left: 2px solid var(--accent); padding-left: 16px; margin-left: -18px; }
+.verbete:last-child { border-bottom: none; padding-bottom: 0; }
+.verbete-titulo { font-size: 15px; font-weight: 500; letter-spacing: -0.2px; }
+.verbete .explica { margin-top: 10px; }
+
+/* Fio de cima e de baixo, sem fundo colorido: é um recado, não um alerta. */
+.aviso {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+    padding: 12px 0;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    font-size: 13px; line-height: 1.6; color: var(--muted);
+}
+.aviso-link {
+    background: none; border: none; padding: 0;
+    font-family: inherit; font-size: 13px; color: var(--ink);
+    text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.aviso-fechar {
+    flex-shrink: 0;
+    background: none; border: none; padding: 0;
+    font-family: inherit; font-size: 18px; line-height: 1; color: var(--faint); cursor: pointer;
+}
+.aviso-fechar:hover { color: var(--ink); }
+
+/* ─── Marca ──────────────────────────────────────────────────── */
+
+.brand { display: flex; align-items: center; gap: 11px; }
+.brand-mark { display: flex; color: var(--ink); }
+.brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+.brand-sub { font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; color: var(--faint); }
+
+/* ─── Layout ─────────────────────────────────────────────────── */
+
+.shell { min-height: 100vh; display: flex; align-items: flex-start; }
+
+/* Barra lateral clara com fio à direita: no suíço a separação é o fio, não um
+   painel escuro pesando num canto.
+   
+   sticky + altura de viewport em vez de deixar o flex esticar: sem isso ela
+   cresce junto com o conteúdo, e numa página longa o rodapé dela (site, tema,
+   sair) some no fim da rolagem. O overflow próprio cobre o caso de a barra ser
+   mais alta que a janela. */
+.sidebar {
+    position: sticky;
+    top: 0;
+    width: 248px;
+    height: 100vh;
+    flex-shrink: 0;
+    border-right: 1px solid var(--line);
+    padding: 36px 30px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.sidebar-head { display: flex; align-items: center; gap: 11px; margin-bottom: 20px; }
+
+/* Fio inteiro, de fio a fio da barra: os 30px de padding são descontados com
+   margem negativa para o traço encostar nas bordas, como o fio que separa a
+   barra do conteúdo. */
+.sidebar-hr {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 0 -30px 20px;
+}
+.sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 30px; }
+.nav-label { font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
+
+button.nav-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 0;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+/* O ativo é peso e cor, não pílula de fundo. */
+.nav-item-on { color: var(--ink); font-weight: 500; }
+button.nav-item:hover { color: var(--ink); }
+
+.sidebar-foot { padding-top: 22px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+/* Vence o 'align-self: flex-start' do .link-btn, que alinha à esquerda em todo
+   outro lugar onde ele aparece. */
+.sidebar-foot .link-btn { align-self: center; }
+/* Caixa com fio, e não texto solto: é o único controle da barra que abre
+   alguma coisa, e precisa parecer clicável sem depender do hover. */
+.seletor { position: relative; margin-bottom: 34px; }
+.site-chip {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 10px 12px;
+    background: none; border: 1px solid var(--line);
+    font-family: inherit; color: var(--ink); text-align: left; cursor: pointer;
+}
+/* Hover só com o menu fechado. Aberto, os dois são uma caixa só, e escurecer
+   a borda do botão deixaria metade do contorno de uma cor e metade de outra. */
+.site-chip[aria-expanded="false"]:hover { border-color: var(--faint); }
+
+/* Sem borda de cima e encostado: quem separa o botão do menu é a borda de
+   baixo do próprio botão. Assim existe um fio só entre os dois, e nenhum dos
+   dois esconde o do outro. */
+.site-menu {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 20;
+    max-height: 320px; overflow-y: auto;
+    background: var(--bg);
+    border: 1px solid var(--line); border-top: none;
+}
+.site-opcao {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    width: 100%; padding: 10px 12px;
+    background: none; border: none; border-bottom: 1px solid var(--line);
+    font-family: inherit; font-size: 14px; color: var(--muted);
+    text-align: left; cursor: pointer;
+}
+.site-opcao:last-child { border-bottom: none; }
+.site-opcao:hover { background: var(--line); color: var(--ink); }
+/* O escolhido é peso e cor, como o item de navegação ativo. */
+.site-opcao-on { color: var(--ink); font-weight: 500; }
+.site-opcao .uma-linha { max-width: 100%; }
+.site-opcao-acao { flex-direction: row; align-items: center; gap: 8px; }
+.site-chip-nome { flex: 1; font-size: 14px; line-height: 1.3; }
+
+.site-item-nome { font-size: 14px; line-height: 1.3; }
+
+/* Nome de cliente não tem limite de tamanho, e a barra tem. Cortar mantém a
+   altura do controle fixa — quebrar em duas linhas empurra a navegação para
+   baixo e muda de altura conforme o site escolhido. O nome inteiro fica no
+   title, para quem precisar conferir. */
+.uma-linha { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* Não verificado e inativo são estados, não erros: cinza e miúdos. */
+.site-tag {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase;
+    color: var(--faint); border: 1px solid var(--line); padding: 1px 5px;
+}
+
+/* Uma linha por site: identidade à esquerda, ações à direita. Sem tabela —
+   são três informações de comprimentos muito diferentes, e colunas fixas
+   quebrariam no primeiro nome longo. */
+.site-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 16px;
+    align-items: start;
+    padding: 18px 0; border-bottom: 1px solid var(--line);
+}
+.site-row:last-of-type { border-bottom: none; }
+.site-row-nome { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px; }
+.site-row-acoes { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Última linha da lista, no lugar onde entraria o próximo site. Fio pontilhado
+   porque ela ainda não é um site — é o espaço dele. */
+/* Mesmo ritmo das linhas entre si — 18px de cada lado do fio. Com margem
+   própria somada ao padding da linha anterior, este bloco flutuava no meio de
+   57px de branco e deixava de parecer o próximo item da lista. */
+.site-novo {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 18px 0 4px;
+    background: none; border: none; border-top: 1px dashed var(--line);
+    font-family: inherit; font-size: 14px; color: var(--muted);
+    cursor: pointer;
+}
+.site-novo:hover { color: var(--ink); }
+.site-row-nova { border-top: 1px dashed var(--line); border-bottom: none; padding: 18px 0 4px; }
+
+.site-estado { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.site-estado svg { flex-shrink: 0; }
+.site-estado-fraco { color: var(--faint); }
+
+.link-btn {
+    align-self: flex-start;
+    background: none; border: none; padding: 0;
+    font-family: inherit; font-size: 13px; color: var(--faint);
+    cursor: pointer;
+}
+.link-btn:hover { color: var(--ink); }
+.link-btn:disabled { color: var(--line); cursor: default; }
+
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+.topbar {
+    padding: 48px 60px 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.content { flex: 1; padding: 44px 60px 60px; }
+.mono-muted { font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; color: var(--faint); }
+
+/* ─── Blocos ─────────────────────────────────────────────────── */
+
+.card { background: var(--bg); border: 1px solid var(--line); }
+
+.card-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding-bottom: 14px; border-bottom: 1px solid var(--line);
+}
+
+.card-title { font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; color: var(--faint); }
+
+.btn-ghost {
+    background: none; border: 1px solid var(--line);
+    padding: 7px 16px; font-family: inherit; font-size: 13px; color: var(--muted);
+    cursor: pointer;
+}
+.btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
+
+.snippet {
+    display: block;
+    background: var(--code);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink);
+    word-break: break-all;
+}
+
+.snippet-block { white-space: pre; overflow-x: auto; }
+.prose { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+.waiting {
+    align-self: flex-start;
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+}
+
+.spin { display: flex; animation: spin 6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+/* ─── Visão geral ────────────────────────────────────────────── */
+
+/* Fio de 1px como gap sobre fundo cinza: dá a grade contínua sem desenhar
+   quatro bordas que se somariam em 2px nos encontros. */
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+}
+
+.metric { background: var(--bg); padding: 26px 28px; }
+.metric-value { font-size: 46px; font-weight: 300; line-height: 1; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
+.metric-lead { color: var(--accent); }
+
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 60px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 44px; }
+
+.table-head { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
+
+/* O cabeçalho vira botão sem parecer botão: mesma versalete de antes, e o que
+   avisa que é clicável é o cursor e o hover. Uma tabela cheia de botões
+   desenhados competiria com os números, que são o assunto. */
+.table-ord {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: none; border: none; padding: 0;
+    font-family: inherit; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.9px; text-transform: uppercase;
+    color: var(--faint); cursor: pointer;
+}
+.table-ord:hover { color: var(--ink); }
+.table-ord-on { color: var(--ink); }
+
+.table-busca {
+    width: 100%; margin-top: 12px; padding: 7px 0;
+    background: none; border: none; border-bottom: 1px solid var(--line);
+    font-family: inherit; font-size: 13px; color: var(--ink);
+}
+.table-busca::placeholder { color: var(--faint); }
+/* Invisível, mas ocupando o lugar: é o que mantém as tabelas vizinhas na mesma
+   altura. 'visibility' e não 'display: none' justamente por isso. */
+.table-busca-oculta { visibility: hidden; }
+.table-busca:focus { outline: none; border-bottom-color: var(--ink); }
+
+/* Rolagem ligada em TODA tabela, não só nas longas: quem cabe não mostra barra
+   nenhuma, e a caixa tem sempre o mesmo teto. O 'scrollbar-gutter: stable'
+   reserva o espaço da barra dos dois lados da comparação — sem ele, a tabela
+   que rola perde 15px de largura e desalinha da vizinha que não rola. */
+.table-corpo {
+    display: flex;
+    flex-direction: column;
+    max-height: 384px;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+}
+/* Barra fina e discreta: a padrão do sistema tem 15px e rouba largura visível
+   da linha, além de destoar de uma tela que só usa fio e espaço. */
+.table-corpo::-webkit-scrollbar { width: 6px; }
+.table-corpo::-webkit-scrollbar-track { background: transparent; }
+.table-corpo::-webkit-scrollbar-thumb { background: var(--line); }
+.table-corpo:hover::-webkit-scrollbar-thumb { background: var(--faint); }
+.table-row { display: grid; grid-template-columns: 1fr auto; gap: 20px; padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.table-row:last-child { border-bottom: none; }
+.table-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table-value { font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* Grupo conectado, sem espaço entre os botões: a grade não tem folga aqui. */
+.period {
+    padding: 7px 16px;
+    background: none;
+    border: 1px solid var(--line);
+    border-left: none;
+    font-family: inherit; font-size: 13px; color: var(--muted);
+    cursor: pointer;
+}
+.period:first-child { border-left: 1px solid var(--line); }
+.period-on { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 500; }
+
+/* ─── Diagnóstico e API ──────────────────────────────────────── */
+
+.card-alert { border-color: var(--erro); }
+.card-alert .card-title { color: var(--erro); }
+.card-draft { border-style: dashed; }
+
+.card-alert code, .prose code, .route-path {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 13px;
+    color: var(--ink);
+}
+
+.route { display: grid; grid-template-columns: 52px 220px 1fr; gap: 14px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.route:last-child { border-bottom: none; }
+
+.verb {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+    text-align: center; padding: 3px 0;
+    border: 1px solid var(--line); color: var(--faint);
+}
+.verb-post { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+/* A única rota que desfaz alguma coisa é a única marcada em cor. */
+.verb-delete { border-color: var(--erro); color: var(--erro); }
+.verb-patch { border-color: var(--muted); color: var(--muted); }
+.route-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+/* Quatro cards não cabem lado a lado num laptop estreito sem espremer o
+   número, que é o que a tira existe para mostrar. */
+@media (max-width: 1180px) {
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+    .site-row { grid-template-columns: 1fr; }
+    .site-row-acoes { justify-content: flex-start; }
+    .metrics, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .grid-2, .grid-3 { gap: 40px; }
+}
+@media (max-width: 760px) {
+    .route { grid-template-columns: 52px 1fr; }
+    .route-desc { grid-column: 2; }
+}
+
+/* Variação contra o período anterior. Sem cor: num painel que gasta a única cor
+   no número principal, pintar a seta de verde ou vermelho criaria uma segunda
+   hierarquia competindo. A direção vem da seta e do sinal. */
+.metric-delta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--faint);
+}
+
+.delta { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.delta-sobe { color: var(--ink); }
+
+/* ─── Celular ────────────────────────────────────────────────── */
+
+.menu-btn { display: none; }
+.backdrop { display: none; }
+
+@media (max-width: 900px) {
+    /* A barra vira gaveta: fora da tela por padrão, deslizando por cima.
+       Empurrar o conteúdo deixaria 152px de largura útil num celular. */
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 20;
+        background: var(--bg);
+        transform: translateX(-100%);
+        transition: transform 0.22s ease;
+    }
+
+    .sidebar-open { transform: translateX(0); }
+
+    .backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 19;
+        background: rgba(0, 0, 0, 0.35);
+    }
+
+    .menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        /* 44px é o mínimo de alvo de toque — menor que isso erra o dedo. */
+        width: 44px;
+        height: 44px;
+        margin: 0 10px 0 -12px;
+        flex-shrink: 0;
+        background: none;
+        border: none;
+        color: var(--ink);
+        cursor: pointer;
+    }
+
+    .topbar { padding: 28px 24px 0; align-items: center; flex-wrap: wrap; row-gap: 20px; }
+
+    /* O seletor de período desce para a própria linha: ao lado do título ele
+       espremeria os dois em telas estreitas. */
+    .topbar-aside { width: 100%; }
+    .content { padding: 32px 24px 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar { transition: none; }
+}
+
+/* ─── Core Web Vitals ────────────────────────────────────────── */
+
+.vital-row {
+    display: grid;
+    grid-template-columns: 46px 1fr 78px 150px 128px;
+    gap: 14px;
+    align-items: baseline;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+}
+
+.vital-row:last-of-type { border-bottom: none; }
+
+.vital-sigla { font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: var(--faint); }
+.vital-nome { color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vital-valor { font-variant-numeric: tabular-nums; }
+
+/* A classificação é texto, não semáforo. Verde e vermelho aqui criariam uma
+   segunda hierarquia de cor competindo com o número principal — e excluiriam
+   quem não distingue as duas. */
+.vital-estado {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: right;
+}
+
+
+.vital-bom { color: var(--faint); font-weight: 500; }
+
+@media (max-width: 760px) {
+    /* Régua e estado descem para a segunda linha: espremidos em cinco colunas
+       eles ficariam estreitos demais para significar alguma coisa. */
+    .vital-row { grid-template-columns: 46px 1fr 78px; row-gap: 10px; }
+    .regua { grid-column: 2 / -1; }
+    .vital-estado { grid-column: 2 / -1; text-align: left; min-width: 0; }
+}
+
+/* ─── Cascata de carregamento ────────────────────────────────── */
+
+.fase-row {
+    display: grid;
+    grid-template-columns: 180px 1fr 80px;
+    gap: 16px;
+    align-items: center;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+}
+
+.fase-nome { color: var(--muted); }
+.fase-valor { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* A barra é uma linha só, na ordem em que as fases acontecem. O vão de 2px é
+   o fundo aparecendo entre os trechos — separar por espaço em vez de por tom
+   evita inventar seis cinzas que ninguém distingue. */
+.cascata {
+    display: flex;
+    height: 24px;
+}
+
+/* A régua horizontal da cascata inteira: barra única, linhas e total usam esta
+   mesma grade, e a barra ocupa a mesma coluna que as trilhas. Sem isso o
+   trecho 4 da barra e a barra da linha 4 começam em pontos diferentes, e a
+   leitura de um para o outro exige confiar no número em vez de no olho. */
+.cascata-grade {
+    display: grid;
+    grid-template-columns: 18px 148px 1fr 72px;
+    gap: 14px;
+    align-items: center;
+}
+.cascata-topo { margin: 22px 0 4px; }
+
+.cascata-trecho {
+    /* A separação é pintada por dentro, não por 'gap'. O gap ocupava largura de
+       layout: com quatro vãos, cada trecho saía 8px do lugar e o trecho 4 da
+       barra não caía mais sobre a barra da linha 4. A sombra interna separa
+       igual e não move fronteira nenhuma. */
+    box-shadow: inset -2px 0 0 var(--bg);
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--muted);
+    min-width: 2px;
+    overflow: hidden;
+}
+
+/* var(--bg) funciona nos dois temas: no claro é branco sobre cinza médio, no
+   escuro é quase preto sobre cinza claro. Um literal serviria só para um. */
+.cascata-num-barra {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--bg);
+    line-height: 1;
+}
+
+/* A fase mais lenta é o gargalo. Nesta página a cor não disputa com nada, então
+   pode apontar — é a única coisa que o cliente precisa levar daqui. */
+.cascata-gargalo { background: var(--accent); }
+
+.cascata-linhas { margin-top: 20px; }
+
+/* Número, etapa, trilho e tempo. O trilho ocupa o que sobra, e é dentro dele
+   que a barra é deslocada — é o deslocamento que transforma uma lista de
+   durações numa cascata. */
+.cascata-linha {
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+}
+.cascata-linha:last-child { border-bottom: none; }
+.cascata-trilho { display: block; min-width: 0; }
+.cascata-barra {
+    display: block;
+    height: 10px;
+    background: var(--ink);
+    /* Etapa de 1 ms existe e precisa aparecer: sem o mínimo ela vira uma barra
+       de zero pixel e a linha parece vazia. */
+    min-width: 2px;
+}
+/* Duas classes de propósito: '.cascata-gargalo' sozinha vem antes no arquivo e
+   perderia para o fundo de '.cascata-barra', que tem a mesma especificidade. */
+.cascata-barra.cascata-gargalo { background: var(--accent); }
+.cascata-num { text-align: right; color: var(--muted); white-space: nowrap; }
+
+.cascata-total {
+    padding: 11px 0;
+    border-top: 1px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    font-weight: 500;
+}
+.cascata-total .cascata-num { color: var(--ink); }
+
+/* Precisa vir depois das regras acima: media query não aumenta especificidade,
+   e num bloco anterior do arquivo estas linhas seriam simplesmente ignoradas.
+   No celular o rótulo e a trilha não cabem lado a lado; a trilha some e sobram
+   número, nome e tempo. A barra única vira largura cheia — sem trilha embaixo,
+   não há com o que alinhar. */
+@media (max-width: 900px) {
+    .cascata-grade { grid-template-columns: 18px 1fr auto; gap: 10px; }
+    .cascata-topo { display: block; margin: 18px 0 10px; }
+    .cascata-trilho { display: none; }
+    /* A trilha vazia do total some junto com as outras: sem isso ela ocupa a
+       terceira coluna e joga o tempo para a linha de baixo. */
+    .cascata-total > span:nth-child(2) { display: none; }
+}
+
+.cascata-legenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    margin-bottom: 20px;
+}
+
+.cascata-item { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+.cascata-marca {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    background: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--bg);
+}
+.cascata-rotulo { color: var(--muted); }
+.cascata-num { font-variant-numeric: tabular-nums; }
+
+.fase-total { border-bottom: 2px solid var(--ink); border-top: 1px solid var(--ink); font-weight: 500; }
+.fase-total .fase-nome { color: var(--ink); }
+
+@media (max-width: 620px) {
+    .fase-row { grid-template-columns: 1fr 70px; }
+    .fase-barra { grid-column: 1 / -1; }
+}
+
+/* Régua: as duas fronteiras do Google, com o p75 marcado. As zonas escurecem
+   da esquerda para a direita — sequencial, porque a escala vai de bom a ruim. */
+.regua { position: relative; display: flex; align-self: center; width: 100%; height: 4px; }
+.regua-zona { display: block; height: 100%; }
+.regua-bom { background: var(--line); }
+.regua-meh { background: var(--muted); opacity: 0.45; }
+.regua-ruim { background: var(--muted); }
+
+.regua-marca {
+    position: absolute;
+    top: -3px;
+    width: 2px;
+    height: 10px;
+    background: var(--ink);
+    /* Centraliza o traço no valor em vez de começar nele. */
+    transform: translateX(-1px);
+}

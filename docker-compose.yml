@@ -1,0 +1,32 @@
+# Postgres local para desenvolvimento do Coddara Analytics Lite.
+#
+#   docker compose up -d        sobe
+#   docker compose down         para (mantém os dados)
+#   docker compose down -v      para e APAGA os dados
+#
+# A senha aqui é de desenvolvimento e está em texto puro de propósito: este
+# arquivo vai para o git. Credencial de produção nunca mora aqui.
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: coddara-lite-db
+    environment:
+      POSTGRES_USER: coddara
+      POSTGRES_PASSWORD: coddara_dev
+      POSTGRES_DB: coddara_analytics
+    ports:
+      - '5432:5432'
+    volumes:
+      # Volume nomeado: os dados sobrevivem ao `down` e ao recriar o container.
+      - data:/var/lib/postgresql/data
+    healthcheck:
+      # Permite usar `docker compose up -d --wait` e, mais pra frente, fazer o
+      # servidor esperar o banco estar de pé antes de subir.
+      test: ['CMD-SHELL', 'pg_isready -U coddara -d coddara_analytics']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  data:
