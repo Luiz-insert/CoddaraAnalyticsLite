@@ -26,6 +26,11 @@ async function request(path, options = {}) {
 export const login = (email, password) =>
     request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 
+// O cadastro já devolve a sessão pronta: o servidor grava o cookie na mesma
+// resposta. Quem acabou de criar a conta não digita a senha duas vezes.
+export const register = (email, password) =>
+    request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+
 export const logout = () => request('/auth/logout', { method: 'POST' });
 
 export const listSites = () => request('/sites');
