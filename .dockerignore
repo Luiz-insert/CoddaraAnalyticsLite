@@ -1,0 +1,18 @@
+# O que nunca deve entrar na imagem. Sem isto, o COPY leva 261MB de
+# node_modules da máquina local — com binários compilados para o SO de cá.
+node_modules
+**/node_modules
+dashboard/dist
+server/publico
+
+.git
+.env
+.env.*
+
+# Só servem para desenvolvimento e documentação
+exemplo
+design
+docs
+dev.sh
+docker-compose.yml
+*.md

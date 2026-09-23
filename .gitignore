@@ -2,9 +2,10 @@
 # ficam no histórico para sempre — apagar depois não recupera o espaço.
 node_modules/
 
-# Build do painel. É gerado a partir do fonte a cada deploy; versionar dois
-# artefatos do mesmo código é convite para eles divergirem.
+# Build do painel e do beacon. São gerados a partir do fonte a cada deploy;
+# versionar dois artefatos do mesmo código é convite para eles divergirem.
 dashboard/dist/
+server/publico/
 
 # Segredos. Listados antes de existirem, de propósito: no dia em que o .env de
 # produção for criado, ele já nasce ignorado. Credencial que chega ao histórico

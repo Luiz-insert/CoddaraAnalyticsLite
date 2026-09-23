@@ -1,4 +1,8 @@
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3002';
+// Absoluta, e não relativa: este endereço é copiado para dentro do HTML do
+// site do cliente, que roda em outro domínio. Sai da origem da própria página,
+// então acompanha o domínio onde o painel estiver publicado.
+const API = import.meta.env.VITE_API_URL?.replace(/\/api$/, '')
+    ?? (import.meta.env.DEV ? 'http://localhost:3002' : globalThis.location.origin);
 
 // O que existe hoje, agrupado por quem consome. A separação importa: as rotas
 // de leitura dependem de cookie de sessão, o que as torna inúteis fora do

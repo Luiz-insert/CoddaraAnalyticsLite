@@ -2,7 +2,11 @@ import { useState } from 'react';
 import BrandMark from './BrandMark.jsx';
 import Explica from './Explica.jsx';
 
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3002';
+// Absoluta, e não relativa: este endereço é copiado para dentro do HTML do
+// site do cliente, que roda em outro domínio. Sai da origem da própria página,
+// então acompanha o domínio onde o painel estiver publicado.
+const API = import.meta.env.VITE_API_URL?.replace(/\/api$/, '')
+    ?? (import.meta.env.DEV ? 'http://localhost:3002' : globalThis.location.origin);
 
 export default function Install({ site, rejections = [] }) {
     const [copied, setCopied] = useState(false);

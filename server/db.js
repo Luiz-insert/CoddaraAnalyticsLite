@@ -5,6 +5,26 @@ const pool = new pg.Pool({
     connectionString:
         process.env.DATABASE_URL ||
         'postgres://coddara:coddara_dev@localhost:5432/coddara_analytics',
+
+    // Provedor gerenciado (Railway, Neon, Supabase) recusa conexão sem TLS pela
+    // rede pública. O certificado deles é próprio, não emitido por autoridade
+    // que o Node conheça, daí o rejectUnauthorized: false — criptografa, mas
+    // não verifica a identidade do servidor.
+    //
+    // Pela rede interna do provedor (postgres.railway.internal) não é
+    // necessário: o tráfego não sai da rede privada. Por isso é opt-in.
+    ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+});
+
+// Sem este ouvinte o processo MORRE quando a conexão ociosa cai — o 'pg' emite
+// 'error' no pool, e evento de erro sem ouvinte derruba o Node inteiro. Basta o
+// banco reiniciar, a rede piscar ou o Postgres ser atualizado para o ingest
+// parar de receber evento de todos os clientes de uma vez.
+//
+// Registrando o ouvinte, o pool descarta a conexão quebrada e abre outra no
+// próximo uso, que é exatamente o comportamento desejado.
+pool.on('error', (err) => {
+    console.error('[db] conexão ociosa caiu, será refeita:', err.message);
 });
 
 export const query = (text, params) => pool.query(text, params);

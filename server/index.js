@@ -2,9 +2,10 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { build } from 'esbuild';
-import { findSiteByToken, insertEvents, createUser, findUserByEmail, listSitesForUser, findSiteForUser, createSiteForUser, userHasDomain, setSiteActive, renameSite, markVerifiedBySnippet, recordRejection, listRejections } from './db.js';
+import { query, findSiteByToken, insertEvents, createUser, findUserByEmail, listSitesForUser, findSiteForUser, createSiteForUser, userHasDomain, setSiteActive, renameSite, markVerifiedBySnippet, recordRejection, listRejections } from './db.js';
 import { overview, isPeriod } from './reports.js';
 import { localizar } from './geo.js';
 import { hashPassword, checkPassword, normalizeEmail, signToken, validateCredentials, requireAuth, SESSION_COOKIE, sessionCookie, limitarTentativas, limparTentativas } from './auth.js';
@@ -54,30 +55,32 @@ function originMatches(origin, domain) {
 // junto para o navegador de cada visitante de cada cliente — e eles são quase
 // metade do arquivo. Minificar na entrega mantém o fonte comentado sem cobrar
 // isso de quem visita.
-const BEACON = fileURLToPath(new URL('../tracker/beacon.js', import.meta.url));
+//
+// Em produção o arquivo vem pronto do deploy (`npm run build:beacon`); em
+// desenvolvimento é compilado a cada pedido, para o F5 refletir a edição.
+// O esbuild só é importado no segundo caso: ele é dependência de build, e
+// `npm ci --omit=dev` não o instala na máquina que atende os visitantes.
+const PRODUCAO = process.env.NODE_ENV === 'production';
+// O caminho é repetido aqui, e não importado do build-beacon.js, porque aquele
+// arquivo importa o esbuild no topo: um `import` de uma constante que seja
+// arrastaria a ferramenta de build para dentro do processo que atende os
+// visitantes — e derrubaria o servidor ao subir, onde ela não está instalada.
+const BEACON_PRONTO = fileURLToPath(new URL('./publico/t.js', import.meta.url));
 let beaconJs = null;
 
+async function prepararBeacon() {
+    if (PRODUCAO) {
+        if (!beaconJs) beaconJs = await readFile(BEACON_PRONTO, 'utf8');
+        return beaconJs;
+    }
+    const { compilarBeacon } = await import('./build-beacon.js');
+    return compilarBeacon();
+}
+
 app.get('/t.js', publicCors, async (req, res) => {
+    let codigo;
     try {
-        // Em desenvolvimento relê a cada pedido, para o F5 refletir a edição.
-        // Em produção o arquivo não muda sem redeploy, então vale guardar.
-        if (!beaconJs || process.env.NODE_ENV !== 'production') {
-            // build e não transform: o beacon importa a web-vitals, e agrupar
-            // evita um segundo pedido de rede no site de cada cliente.
-            const { outputFiles } = await build({
-                entryPoints: [BEACON],
-                bundle: true,
-                minify: true,
-                format: 'iife',
-                target: 'es2020',
-                write: false,
-                // O beacon mora em tracker/, e o esbuild resolveria a partir
-                // de lá — onde não há node_modules. As dependências dele são
-                // do servidor, que é quem o entrega.
-                nodePaths: [fileURLToPath(new URL('./node_modules', import.meta.url))],
-            });
-            beaconJs = outputFiles[0].text;
-        }
+        codigo = await prepararBeacon();
     } catch (err) {
         console.error('[beacon] falha ao preparar:', err.message);
         return res.status(500).end();
@@ -87,7 +90,23 @@ app.get('/t.js', publicCors, async (req, res) => {
     // 5 minutos: curto o bastante para uma correção chegar rápido a todos os
     // sites, longo o bastante para não buscar o script a cada navegação.
     res.set('Cache-Control', 'public, max-age=300');
-    res.send(beaconJs);
+    res.send(codigo);
+});
+
+// Saúde do processo, para o monitor de uptime e para o healthcheck do
+// container. Consulta o banco de propósito: um Node que responde com o Postgres
+// fora do ar está "de pé" e inútil — e é justamente o caso em que ninguém é
+// avisado, porque a página abre e só os números somem.
+//
+// Sem CORS e sem autenticação: não revela nada além de sim ou não.
+app.get('/health', async (req, res) => {
+    try {
+        await query('SELECT 1');
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('[health] banco fora:', err.message);
+        res.status(503).json({ ok: false, error: 'banco indisponível' });
+    }
 });
 
 // O parser de texto vive só aqui: o beacon manda text/plain por causa do
@@ -184,9 +203,19 @@ app.post('/e', publicCors, express.text({ type: '*/*', limit: '8kb' }), async (r
     }
 });
 
-app.use(dashboardCors);
+// As rotas do painel vivem sob /api. Duas razões:
+//
+// 1. A SPA precisa de "qualquer caminho desconhecido devolve o index.html".
+//    Sem prefixo, uma rota de API esquecida passaria a devolver HTML com
+//    status 200 — o erro que parece "a API retornou uma página".
+// 2. /t.js e /e ficam FORA daqui, na raiz, porque são o contrato público que
+//    entra no HTML de cada cliente. Mudá-los depois quebraria todo site já
+//    instalado; o caminho do painel é interno e pode mudar à vontade.
+const painel = express.Router();
 
-app.post('/auth/register', async (req, res) => {
+painel.use(dashboardCors);
+
+painel.post('/auth/register', async (req, res) => {
     const problem = validateCredentials(req.body ?? {});
     if (problem) return res.status(400).json({ error: problem });
 
@@ -204,7 +233,7 @@ app.post('/auth/register', async (req, res) => {
     }
 });
 
-app.post('/auth/login', limitarTentativas, async (req, res) => {
+painel.post('/auth/login', limitarTentativas, async (req, res) => {
     const { email, password } = req.body ?? {};
     const user = await findUserByEmail(normalizeEmail(email));
 
@@ -243,22 +272,22 @@ function requireOwner(req, res, next) {
     res.status(403).json({ error: 'Só o dono do site pode fazer isso.' });
 }
 
-app.post('/auth/logout', (req, res) => {
+painel.post('/auth/logout', (req, res) => {
     // Precisa das MESMAS opções do set, senão o navegador entende como outro
     // cookie e o antigo continua valendo.
     res.clearCookie(SESSION_COOKIE, sessionCookie);
     res.status(204).end();
 });
 
-app.get('/me', requireAuth, (req, res) => {
+painel.get('/me', requireAuth, (req, res) => {
     res.json({ id: req.user.id, isStaff: req.user.isStaff });
 });
 
-app.get('/sites', requireAuth, async (req, res) => {
+painel.get('/sites', requireAuth, async (req, res) => {
     res.json(await listSitesForUser({ userId: req.user.id, isStaff: req.user.isStaff }));
 });
 
-app.get('/sites/:siteId', requireAuth, requireSiteAccess, (req, res) => {
+painel.get('/sites/:siteId', requireAuth, requireSiteAccess, (req, res) => {
     res.json(req.site);
 });
 
@@ -269,7 +298,7 @@ const nomeInvalido = (name) =>
         ? 'O nome precisa ter entre 1 e 80 caracteres.'
         : null;
 
-app.post('/sites', requireAuth, async (req, res) => {
+painel.post('/sites', requireAuth, async (req, res) => {
     const name = String(req.body?.name ?? '').trim();
     const domain = normalizeDomain(req.body?.domain);
 
@@ -293,7 +322,7 @@ app.post('/sites', requireAuth, async (req, res) => {
 // Só o nome. O domínio é imutável de propósito: ele é a chave contra a qual o
 // Origin de cada evento é conferido, e trocá-lo cortaria a coleta do site em
 // silêncio e invalidaria a verificação já feita. Domínio novo é site novo.
-app.patch('/sites/:siteId', requireAuth, requireSiteAccess, requireOwner, async (req, res) => {
+painel.patch('/sites/:siteId', requireAuth, requireSiteAccess, requireOwner, async (req, res) => {
     const name = String(req.body?.name ?? '').trim();
 
     const problema = nomeInvalido(name);
@@ -304,21 +333,21 @@ app.patch('/sites/:siteId', requireAuth, requireSiteAccess, requireOwner, async 
 });
 
 // Remover para de receber evento e some do painel; o histórico fica.
-app.delete('/sites/:siteId', requireAuth, requireSiteAccess, requireOwner, async (req, res) => {
+painel.delete('/sites/:siteId', requireAuth, requireSiteAccess, requireOwner, async (req, res) => {
     await setSiteActive({ siteId: req.site.id, active: false });
     res.status(204).end();
 });
 
-app.post('/sites/:siteId/reactivate', requireAuth, requireSiteAccess, requireOwner, async (req, res) => {
+painel.post('/sites/:siteId/reactivate', requireAuth, requireSiteAccess, requireOwner, async (req, res) => {
     await setSiteActive({ siteId: req.site.id, active: true });
     res.status(204).end();
 });
 
-app.get('/sites/:siteId/rejections', requireAuth, requireSiteAccess, async (req, res) => {
+painel.get('/sites/:siteId/rejections', requireAuth, requireSiteAccess, async (req, res) => {
     res.json(await listRejections(req.site.id));
 });
 
-app.get('/sites/:siteId/overview', requireAuth, requireSiteAccess, async (req, res) => {
+painel.get('/sites/:siteId/overview', requireAuth, requireSiteAccess, async (req, res) => {
     const period = req.query.period ?? '7d';
     if (!isPeriod(period)) return res.status(400).json({ error: 'Período inválido.' });
 
@@ -329,6 +358,27 @@ app.get('/sites/:siteId/overview', requireAuth, requireSiteAccess, async (req, r
         res.status(500).json({ error: 'Não foi possível montar o relatório.' });
     }
 });
+
+app.use('/api', painel);
+
+// O painel compilado, servido pelo mesmo processo. Em produção ele existe;
+// em desenvolvimento quem serve é o Vite, e este trecho não faz nada.
+const PAINEL = fileURLToPath(new URL('../dashboard/dist', import.meta.url));
+
+if (existsSync(PAINEL)) {
+    app.use(express.static(PAINEL, {
+        // O index.html nunca é guardado: é ele que aponta para os arquivos com
+        // hash no nome, e um index velho em cache manda o navegador buscar um
+        // pacote que não existe mais depois do deploy seguinte.
+        setHeaders: (res, caminho) => {
+            if (caminho.endsWith('index.html')) res.set('Cache-Control', 'no-cache');
+        },
+    }));
+
+    // Fallback da SPA: a navegação é estado em memória, então /sites e /ajuda
+    // não existem como arquivo — todos devolvem o index e o React resolve.
+    app.get(/.*/, (req, res) => res.sendFile(`${PAINEL}/index.html`));
+}
 
 //Start server
 app.listen(PORT, () => {

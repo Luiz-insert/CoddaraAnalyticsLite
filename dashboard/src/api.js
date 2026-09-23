@@ -1,4 +1,10 @@
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3002';
+// Em produção o painel e a API são a mesma origem, então basta o caminho:
+// nada de CORS e nada de endereço gravado na compilação. Em desenvolvimento o
+// Vite serve na 5173 e o servidor na 3002, daí o endereço completo.
+//
+// O Vite grava este valor no BUILD, não em tempo de execução: compilar sem o
+// caminho certo gera um painel que tenta falar com o localhost de quem abriu.
+const BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3002/api' : '/api');
 
 // credentials: 'include' em tudo — é o que leva o cookie de sessão. Esquecer
 // disso numa chamada faz ela voltar 401 sem motivo aparente, então fica num
