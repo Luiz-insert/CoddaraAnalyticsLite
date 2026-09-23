@@ -1,10 +1,13 @@
 import pg from 'pg';
 import { randomBytes } from 'node:crypto';
+import { segredo } from './config.js';
 
 const pool = new pg.Pool({
-    connectionString:
-        process.env.DATABASE_URL ||
-        'postgres://coddara:coddara_dev@localhost:5432/coddara_analytics',
+    // Mesma regra do JWT_SECRET: em produção, sem valor definido o processo
+    // recusa subir. O padrão de desenvolvimento apontando para localhost já
+    // custou um deploy — o container tentou falar com o Postgres dele mesmo e
+    // devolveu quarenta linhas de ECONNREFUSED em vez de dizer o que faltava.
+    connectionString: segredo('DATABASE_URL', 'postgres://coddara:coddara_dev@localhost:5432/coddara_analytics'),
 
     // Provedor gerenciado (Railway, Neon, Supabase) recusa conexão sem TLS pela
     // rede pública. O certificado deles é próprio, não emitido por autoridade

@@ -12,6 +12,35 @@ import { query } from './db.js';
 
 const PASTA = fileURLToPath(new URL('./sql', import.meta.url));
 
+// O banco e a aplicação sobem em paralelo no provedor, e quem chega primeiro
+// não espera. Sem esta espera, o primeiro deploy falha por alguns segundos de
+// diferença e fica reiniciando em laço.
+//
+// Só para erro de CONEXÃO: senha errada ou banco inexistente falham na hora,
+// porque insistir não resolveria e só atrasaria o diagnóstico.
+const CONEXAO = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT']);
+const TENTATIVAS = 6;
+
+async function esperarBanco() {
+    for (let i = 1; i <= TENTATIVAS; i += 1) {
+        try {
+            await query('SELECT 1');
+            return;
+        } catch (err) {
+            if (!CONEXAO.has(err.code) || i === TENTATIVAS) {
+                console.error(`\nNão foi possível falar com o banco: ${err.message}`);
+                console.error('Confira a variável DATABASE_URL do serviço.\n');
+                process.exit(1);
+            }
+            const espera = i * 2;
+            console.log(`  banco ainda não responde (${err.code}), tentando de novo em ${espera}s...`);
+            await new Promise((ok) => { setTimeout(ok, espera * 1000); });
+        }
+    }
+}
+
+await esperarBanco();
+
 await query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
         name       text        PRIMARY KEY,

@@ -12,8 +12,10 @@ export function segredo(nome, padraoDev) {
 
     if (process.env.NODE_ENV === 'production') {
         throw new Error(
-            `${nome} não está definido. Em produção não existe valor padrão — ` +
-            'gere um com `openssl rand -base64 32` e ponha no ambiente.',
+            `${nome} não está definido, e em produção não existe valor padrão.\n` +
+            (nome === 'DATABASE_URL'
+                ? '  No Railway, aponte para o serviço do banco: ${{Postgres.DATABASE_URL}}'
+                : '  Gere um com `openssl rand -base64 32` e ponha no ambiente.'),
         );
     }
 
