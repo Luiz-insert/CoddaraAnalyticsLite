@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3002;
 // Atrás de proxy ou CDN, req.ip vira o IP do proxy e a geolocalização inteira
 // quebra. Mas confiar no X-Forwarded-For sem critério deixa qualquer um forjar
 // o próprio IP — por isso é opt-in, e o valor diz quantos saltos confiar.
-// Em produção: TRUST_PROXY=1 se houver um proxy à frente.
+// Em produção no Railway: TRUST_PROXY=2 (borda pública + proxy interno).
 const TRUST_PROXY = process.env.TRUST_PROXY;
 if (TRUST_PROXY) {
     app.set('trust proxy', /^\d+$/.test(TRUST_PROXY) ? Number(TRUST_PROXY) : TRUST_PROXY);
@@ -123,20 +123,6 @@ app.post('/e', publicCors, express.text({ type: '*/*', limit: '8kb' }), async (r
         // e a suíte de testes dele não precisa carregar o banco geográfico.
         geo: localizar(req.ip),
     };
-
-    // Diagnóstico temporário: mostra de onde o req.ip saiu. Loga IP, então só
-    // liga com DEBUG_GEO=1 e por pouco tempo — e sai do código depois.
-    if (process.env.DEBUG_GEO) {
-        console.log('[geo]', {
-            ip: req.ip,
-            ips: req.ips,
-            xff: req.get('x-forwarded-for'),
-            realIp: req.get('x-real-ip'),
-            cfIp: req.get('cf-connecting-ip'),
-            socket: req.socket?.remoteAddress,
-            geo: fromServer.geo,
-        });
-    }
 
     // Responde antes de processar: o navegador do visitante não espera pelo
     // nosso trabalho, e 204 sempre — nem erro nosso pode afetar o site alheio.
