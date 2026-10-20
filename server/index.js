@@ -124,6 +124,20 @@ app.post('/e', publicCors, express.text({ type: '*/*', limit: '8kb' }), async (r
         geo: localizar(req.ip),
     };
 
+    // Diagnóstico temporário: mostra de onde o req.ip saiu. Loga IP, então só
+    // liga com DEBUG_GEO=1 e por pouco tempo — e sai do código depois.
+    if (process.env.DEBUG_GEO) {
+        console.log('[geo]', {
+            ip: req.ip,
+            ips: req.ips,
+            xff: req.get('x-forwarded-for'),
+            realIp: req.get('x-real-ip'),
+            cfIp: req.get('cf-connecting-ip'),
+            socket: req.socket?.remoteAddress,
+            geo: fromServer.geo,
+        });
+    }
+
     // Responde antes de processar: o navegador do visitante não espera pelo
     // nosso trabalho, e 204 sempre — nem erro nosso pode afetar o site alheio.
     res.status(204).end();
