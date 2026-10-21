@@ -1,96 +1,145 @@
 # Coddara Analytics Lite
 
-Analytics web próprio, sem PostHog e sem serviço de terceiros.
+Analytics web auto-hospedado e multi-site. Uma tag `<script>` no site coleta as
+visitas; um painel mostra de onde vêm, o que veem e como o site se comporta
+no navegador de quem visita. Tudo roda num processo Node e num Postgres, sem
+serviço de terceiros e sem cookie.
 
-Substitui o `CoddaraAnalytics` (que é um BFF em cima do PostHog Cloud) por uma
-stack own-stack, onde o custo marginal de mais um cliente é ~zero — o que torna
-viável incluir o Analytics de graça em todo projeto entregue pela Coddara.
+## Como funciona
+
+```
+site do cliente                    servidor                         painel
+───────────────                    ────────                         ──────
+<script src=".../t.js"     ──►  POST /e   valida, anonimiza,  ──►  GET /api/...
+        data-token="...">                 grava em `events`         lê e agrega
+```
+
+1. **Tag.** Cada site cadastrado recebe um token. A tag com esse token vai no
+   `<head>` do site:
+
+   ```html
+   <script defer src="https://SEU-HOST/t.js" data-token="TOKEN_DO_SITE"></script>
+   ```
+
+2. **Beacon.** O `t.js` envia um `pageview` assim que a página fica visível e,
+   em lotes, as métricas de desempenho. Em SPA, as trocas de rota via
+   `history` também contam como pageview. O envio usa `sendBeacon` e falha em
+   silêncio: o site nunca é afetado se o analytics estiver fora do ar.
+
+3. **Ingest.** O servidor responde `204` imediatamente e só depois processa.
+   Um evento é descartado quando:
+   - o token não existe ou o site está desligado;
+   - o cabeçalho `Origin` não corresponde ao domínio cadastrado (o `www.` é
+     tratado como o mesmo site);
+   - o user agent é de robô, ferramenta de linha de comando ou pré-visualização
+     de link.
+
+   Origens recusadas ficam registradas e aparecem na tela de instalação, para
+   diagnosticar tag colada no domínio errado.
+
+4. **Verificação.** O primeiro evento aceito marca o site como verificado.
+   Não há verificação por DNS: só quem consegue publicar a tag no domínio
+   consegue gerar esse evento.
+
+## O que o painel mostra
+
+Todos os números do resumo vêm comparados com o período anterior de mesma
+duração. Períodos: hoje (por hora), 7, 30 e 90 dias (por dia).
+
+| Área | Conteúdo |
+|---|---|
+| Resumo | Pageviews, visitantes, sessões e taxa de rejeição; série temporal de pageviews |
+| Origem | Site de origem (ou acesso direto) e campanhas UTM |
+| Conteúdo | Páginas mais vistas |
+| Local | País e cidade/estado |
+| Tecnologia | Tipo de dispositivo, navegador e sistema operacional |
+| Desempenho | Core Web Vitals (LCP, INP, CLS, FCP, TTFB) no percentil 75, com a distribuição bom / precisa melhorar / ruim; cascata de carregamento (DNS, TCP, TLS, servidor, download, DOM, load) |
+| Instalação | Tag pronta para copiar, estado da verificação e origens recusadas |
+
+**Definições:**
+
+- **Visitante:** hash de IP + user agent + site + data, com sal secreto. A
+  identidade muda à meia-noite (fuso de `SITE_TIMEZONE`), então "visitantes"
+  significa visitantes únicos por dia.
+- **Sessão:** sequência de pageviews do mesmo visitante com menos de 30 minutos
+  entre uma e outra. É calculada na leitura, não gravada.
+- **Rejeição:** sessão com um único pageview.
+
+## Privacidade
+
+- Sem cookie e sem armazenamento no navegador do visitante.
+- O IP é usado só para gerar o hash diário e consultar a localização numa base
+  local (`geoip-lite`). Não é gravado nem enviado a terceiros.
+- Da URL, grava-se o caminho e os parâmetros `utm_*`. O restante da query
+  string e o fragmento são descartados.
+
+## Contas e sites
+
+- Login por e-mail e senha (bcrypt), sessão em cookie `httpOnly` assinado com
+  JWT. O login tem limite de tentativas por IP e e-mail.
+- Uma conta pode ter vários sites e alternar entre eles pelo painel. Cada site
+  tem papéis por conta: `owner` (configura) e `member` (só lê). Contas com
+  `is_staff` veem todos os sites.
+- Remover um site **desliga** a coleta, sem apagar o histórico. O site pode ser
+  religado com o mesmo token.
+- O domínio de um site é imutável; domínio novo é site novo.
 
 ## Stack
 
-| Camada    | Escolha                     | Motivo                                              |
-| --------- | --------------------------- | --------------------------------------------------- |
-| Ingest/API| Node + Express              | Já em uso na casa; ingest isolado para trocar depois |
-| Banco     | Postgres (`pg`, SQL na mão) | Atende a escala real por anos; sem serviço extra     |
-| Tracker   | JS puro, sem framework       | Vai no site do cliente: alvo < 2KB gzipped          |
-| Dashboard | React 19 + Vite + Tailwind  | Mesma stack dos outros projetos Coddara             |
-| Auth      | JWT                         | Mesmo padrão do CoddaraAnalytics                    |
+| Camada | Tecnologia |
+|---|---|
+| Servidor | Node, Express 5, `pg` com SQL escrito à mão |
+| Banco | Postgres |
+| Beacon | JavaScript sem framework + `web-vitals`, empacotado com esbuild (~4 kB gzip) |
+| Painel | React 19, Vite, MUI |
 
-Deliberadamente fora: ClickHouse, Kafka, Redis, ORM, monorepo tooling.
-Cada um resolve um problema de escala ou de time que ainda não existe aqui.
-
-## Estrutura pretendida
+## Estrutura
 
 ```
-tracker/     beacon que vai no site do cliente (+ toolbar carregada sob demanda)
-server/      ingest, API de leitura e agregação diária
-dashboard/   painel React consumido pelo cliente final
+tracker/     fonte do beacon (t.js)
+server/      ingest, API do painel, migrações (sql/) e relatórios
+dashboard/   painel React
+exemplo/     página estática para testar a coleta localmente
+docs/        guia de desenvolvimento e catálogo de dados
+design/      referências visuais do painel
 ```
 
-## Dashboard — princípio
+## Rodando localmente
 
-Direção suíça: grade, muito espaço vazio, hierarquia por peso e fio fino. Uma
-cor só, usada uma vez — no número principal e na linha do gráfico que o detalha.
+Requer Docker, Node e Python 3.
 
-A leitura é feita de tabela. A exceção é a **série temporal de pageviews**: ela
-responde "está crescendo ou caindo?", que nenhuma tabela responde. Desenhada à
-mão em SVG (~1 kB) em vez de biblioteca de gráficos, porque é uma série só e o
-estilo pede fio fino sem efeito.
+```bash
+./dev.sh
+```
 
-Todo número de resumo vem com **comparação contra o período anterior** — a
-janela atual deslocada N dias para trás, mesma duração e mesmo dia da semana.
-É o que transforma "1.284 pageviews" em informação.
+Sobe o Postgres, aplica as migrações, cria um site e uma conta de teste e
+inicia o servidor (`:3002`), o painel (`:5173`) e a página de exemplo
+(`:8080`). Detalhes e solução de problemas em
+[docs/como-rodar.md](docs/como-rodar.md).
 
-Exceção de cor: Core Web Vitals precisam de classificação contra os limites do
-Google para significarem algo. Vem em texto (`LCP 2.4s — Bom`), não em semáforo.
+Testes do servidor:
 
-## Modelo de dados — princípio
+```bash
+cd server && npm test
+```
 
-Evento bruto numa tabela + agregado diário por tenant/página/canal.
-O dashboard lê quase tudo do agregado; o bruto só serve para heatmap e
-investigação pontual. É isso que mantém o Postgres viável em escala.
+## Produção
 
-## O que o produto responde
+O `Dockerfile` gera uma imagem única com servidor, beacon e painel compilados.
+Na subida, aplica as migrações pendentes e só então inicia o servidor. Painel
+e API ficam na mesma origem, com a API sob `/api`.
 
-Dois públicos, duas visões:
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `DATABASE_URL` | sim | Conexão com o Postgres |
+| `JWT_SECRET` | sim | Assina a sessão do painel |
+| `VISITOR_SALT` | sim | Sal do hash de visitante. Trocá-lo faz todos os visitantes parecerem novos |
+| `TRUST_PROXY` | atrás de proxy | Número de proxies confiáveis, para obter o IP real do visitante |
+| `DATABASE_SSL` | não | `true` quando o banco exige TLS |
+| `DASHBOARD_ORIGIN` | não | Origem do painel, para CORS, se estiver em outro domínio |
+| `SITE_TIMEZONE` | não | Fuso do dia nos gráficos e na identidade do visitante. Padrão `America/Sao_Paulo` |
 
-**Dono do negócio**
-1. **Alcance** — visitantes únicos, sessões, série temporal, novos vs recorrentes
-2. **Origem** — canal, site/termo de origem, campanha (UTM), cidade/estado
-3. **Comportamento** — páginas vistas, entrada/saída, tempo, scroll, cliques (heatmap)
-4. **Resultado** — conversões: clique no WhatsApp, envio de formulário, clique em telefone
+Sem as três obrigatórias, o servidor não sobe em produção. Modelo completo em
+[.env.example](.env.example).
 
-**Desenvolvedor (Coddara)**
-5. **Contexto técnico** — dispositivo/navegador/SO/resolução, LCP, CLS, INP, TTFB
-
-O grupo 4 é o que diferencia de "mais um Google Analytics": é a métrica que o
-dono paga para ver. Entra no modelo de dados desde o início, não depois.
-
-## Multi-tenant
-
-Cada tenant gera o próprio token, que o desenvolvedor cola no código do site
-para ser rastreado. Sem provisionamento manual e sem redeploy por cliente —
-que é exatamente o que trava o CoddaraAnalytics hoje.
-
-Isso já roda pelo painel: **Novo site** cadastra nome e domínio, gera o token e
-cai direto na tela de instalação. O acesso nasce junto, na `user_sites`, com
-papel de dono — não existe site sem dono, e a mesma conta troca entre os sites
-pelo seletor no rodapé da barra lateral.
-
-Remover é **desligar**, nunca apagar: a coleta passa a descartar os eventos
-daquele token e o histórico continua consultável, com um botão para religar
-sem trocar o token. Apagar de verdade levaria junto todos os eventos pelo
-CASCADE, e para isso não há desfazer.
-
-## Decisões em aberto
-
-Precisam ser fechadas antes do schema:
-
-- [ ] **Cookie ou sem cookie?** Sem cookie evita banner de consentimento e
-      simplifica LGPD, mas "visitante recorrente" vira estimativa de 24h.
-      _Recomendação: sem cookie._
-- [ ] **Janela de sessão.** Define duração, rejeição e entrada/saída.
-      _Recomendação: 30 min de inatividade._
-- [ ] **Retenção do dado bruto.** Disco e passivo de LGPD.
-      _Recomendação: bruto 90 dias, agregado diário permanente._
-- [ ] **TypeScript ou JS puro?** _Recomendação: JS, por coerência com a casa._
+`GET /health` responde `200` com o banco acessível e `503` sem ele.
