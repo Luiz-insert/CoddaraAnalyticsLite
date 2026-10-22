@@ -105,7 +105,7 @@ export default function Conta({ onLoggedOut }) {
     }
 
     return (
-        <Stack spacing={3} sx={{ maxWidth: 460 }}>
+        <div className="conta">
             <Paper component="form" onSubmit={handleSubmit} sx={{ p: '30px 28px' }}>
                 <Typography variant="h2" sx={{ mb: 0.5 }}>Trocar senha</Typography>
                 <Typography variant="body1" color="text.disabled" sx={{ fontSize: 14, mb: 4 }}>
@@ -151,16 +151,18 @@ export default function Conta({ onLoggedOut }) {
                 </Stack>
             </Paper>
 
-            <Paper sx={{ p: '30px 28px' }}>
-                <Typography variant="h2" sx={{ mb: 0.5 }}>Sessões</Typography>
-                <Typography variant="body1" color="text.disabled" sx={{ fontSize: 14, mb: 3 }}>
-                    Encerra a sessão em todos os aparelhos, inclusive este. Use se entrou num
-                    computador que não é seu.
-                </Typography>
-                <Button variant="outlined" onClick={sairDeTodos}>Sair de todos os aparelhos</Button>
-            </Paper>
+            <div className="conta-coluna">
+                <Paper sx={{ p: '30px 28px' }}>
+                    <Typography variant="h2" sx={{ mb: 0.5 }}>Sessões</Typography>
+                    <Typography variant="body1" color="text.disabled" sx={{ fontSize: 14, mb: 3 }}>
+                        Encerra a sessão em todos os aparelhos, inclusive este. Use se entrou num
+                        computador que não é seu.
+                    </Typography>
+                    <Button variant="outlined" onClick={sairDeTodos}>Sair de todos os aparelhos</Button>
+                </Paper>
 
-            <ExcluirConta onDeleted={onLoggedOut} />
-        </Stack>
+                <ExcluirConta onDeleted={onLoggedOut} />
+            </div>
+        </div>
     );
 }

@@ -154,7 +154,7 @@ function Table({ title, unit, rows, rotulo = (x) => x, verbete }) {
     ));
 
     return (
-        <section style={{ display: 'flex', flexDirection: 'column' }}>
+        <section className="bloco" style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="table-head">
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                     <Cabecalho
@@ -279,7 +279,7 @@ function Aviso({ onAjuda }) {
 
 export default function Overview({ data, onAjuda }) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 52 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
             <Aviso onAjuda={onAjuda} />
 
@@ -298,7 +298,7 @@ export default function Overview({ data, onAjuda }) {
                 ))}
             </div>
 
-            <section>
+            <section className="bloco">
                 <div className="table-head">
                     <span className="card-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                         Pageviews por dia

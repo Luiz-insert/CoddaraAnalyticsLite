@@ -22,7 +22,7 @@ const ms = (v) => (v >= 1000 ? `${(v / 1000).toFixed(2).replace('.', ',')} s` : 
 export default function Cascata({ cascade }) {
     if (!cascade || cascade.samples === 0) {
         return (
-            <section>
+            <section className="bloco">
                 <div className="table-head">
                     <span className="card-title">Onde o tempo vai</span>
                 </div>
@@ -42,7 +42,7 @@ export default function Cascata({ cascade }) {
     const maior = Math.max(...fases.map((f) => f.ms), 1);
 
     return (
-        <section>
+        <section className="bloco">
             <div className="table-head">
                 <span className="card-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                     Onde o tempo vai

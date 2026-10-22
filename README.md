@@ -55,6 +55,7 @@ duração. Períodos: hoje (por hora), 7, 30 e 90 dias (por dia).
 | Tecnologia | Tipo de dispositivo, navegador e sistema operacional |
 | Desempenho | Core Web Vitals (LCP, INP, CLS, FCP, TTFB) no percentil 75, com a distribuição bom / precisa melhorar / ruim; cascata de carregamento (DNS, TCP, TLS, servidor, download, DOM, load) |
 | Instalação | Tag pronta para copiar, estado da verificação e origens recusadas |
+| Notas de atualização | Histórico de atualizações do produto, com aviso no menu do que ainda não foi visto. As entradas ficam em `dashboard/src/novidades.js` e são publicadas com o deploy |
 
 **Definições:**
 

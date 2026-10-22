@@ -58,7 +58,7 @@ export default function Vitals({ vitals }) {
     const linhas = ORDEM.filter((nome) => porNome.has(nome));
 
     return (
-        <section>
+        <section className="bloco">
             <div className="table-head">
                 <span className="card-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                     Core Web Vitals

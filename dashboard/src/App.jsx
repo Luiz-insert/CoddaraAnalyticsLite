@@ -11,6 +11,7 @@ import ComoFunciona from './ComoFunciona.jsx';
 import DefinirSenha from './DefinirSenha.jsx';
 import Conta from './Conta.jsx';
 import Privacidade, { TextoPolitica } from './Privacidade.jsx';
+import Novidades from './Novidades.jsx';
 import { listSites, logout, getOverview, getRejections } from './api.js';
 import { NavegacaoContext } from './navegacao.js';
 
@@ -214,6 +215,11 @@ export default function App() {
                 />
             </Shell>
         ),
+        novidades: () => (
+            <Shell {...comum} title="Notas de atualização">
+                <Novidades />
+            </Shell>
+        ),
         privacidade: () => (
             <Shell {...comum} title="Política de privacidade">
                 <TextoPolitica />
@@ -230,7 +236,7 @@ export default function App() {
             </Shell>
         ),
         overview: () => (
-            <Shell {...comum} title="Visão geral" aside={<PeriodPicker period={period} onChange={setPeriod} />}>
+            <Shell {...comum} title="Visualização" aside={<PeriodPicker period={period} onChange={setPeriod} />}>
                 <Overview data={data} onAjuda={() => irParaAjuda(null)} />
             </Shell>
         ),

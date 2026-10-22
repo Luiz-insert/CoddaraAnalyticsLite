@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Bars3Icon, ChevronDownIcon, PlusIcon } from '@heroicons/react/24/outline';
 import BrandMark from './BrandMark.jsx';
 import { useColorMode } from './colorMode.js';
+import { temNovidade } from './novidades.js';
 
 const SECTIONS = [
-    { label: 'Relatórios', items: [['overview', 'Visão geral'], ['perf', 'Desempenho']] },
-    { label: 'Configuração', items: [['sites', 'Sites'], ['install', 'Instalação'], ['api', 'API'], ['conta', 'Conta']] },
+    { label: 'Novidades', items: [['novidades', 'Notas de atualização']] },
+    { label: 'Relatórios', items: [['overview', 'Visualização'], ['perf', 'Desempenho']] },
+    { label: 'Configuração', items: [['sites', 'Sites'], ['install', 'Instalação'], ['api', 'API']] },
     { label: 'Ajuda', items: [['ajuda', 'Como funciona'], ['privacidade', 'Privacidade']] },
 ];
 
@@ -54,6 +56,10 @@ export default function Shell({ site, sites = [], view, title, aside, children, 
                                     onClick={() => navegar(key)}
                                 >
                                     {rotulo}
+                                    {/* Some na própria página: é lá que ela é marcada como vista. */}
+                                    {key === 'novidades' && view !== 'novidades' && temNovidade() && (
+                                        <span className="nav-ponto" aria-label="Há novidades" />
+                                    )}
                                 </button>
                             ))}
                         </div>
@@ -63,6 +69,15 @@ export default function Shell({ site, sites = [], view, title, aside, children, 
                 {/* Empilhados, não lado a lado: a barra tem 188px úteis, e um
                     'Tema escuro' ao lado de 'Sair' já ocupava quase tudo. */}
                 <div className="sidebar-foot">
+                    {/* Conta mora aqui, com tema e sair: as três são sobre quem está
+                        usando o painel, não sobre o site que está sendo lido. */}
+                    <button
+                        type="button"
+                        className={`link-btn${view === 'conta' ? ' link-btn-on' : ''}`}
+                        onClick={() => navegar('conta')}
+                    >
+                        Conta
+                    </button>
                     <button type="button" className="link-btn" onClick={alternar}>
                         {mode === 'dark' ? 'Tema claro' : 'Tema escuro'}
                     </button>

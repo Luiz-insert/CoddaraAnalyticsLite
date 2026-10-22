@@ -254,6 +254,7 @@ button.nav-item:hover { color: var(--ink); }
 /* Vence o 'align-self: flex-start' do .link-btn, que alinha à esquerda em todo
    outro lugar onde ele aparece. */
 .sidebar-foot .link-btn { align-self: center; }
+.sidebar-foot .link-btn-on { color: var(--ink); font-weight: 500; }
 /* Caixa com fio, e não texto solto: é o único controle da barra que abre
    alguma coisa, e precisa parecer clicável sem depender do hover. */
 .seletor { position: relative; margin-bottom: 34px; }
@@ -418,8 +419,13 @@ button.nav-item:hover { color: var(--ink); }
 .metric-value { font-size: 46px; font-weight: 300; line-height: 1; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
 .metric-lead { color: var(--accent); }
 
-.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 60px; }
-.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 44px; }
+/* Cada tabela, série e bloco de desempenho num quadro de fio fino. O fio é o
+   mesmo --line da grade de métricas, para os quadros e a tira de números
+   serem uma família só. Com a moldura separando, o vão entre eles encolhe. */
+.bloco { border: 1px solid var(--line); background: var(--bg); padding: 22px 24px; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
 
 .table-head { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
 
@@ -520,7 +526,7 @@ button.nav-item:hover { color: var(--ink); }
     .site-row { grid-template-columns: 1fr; }
     .site-row-acoes { justify-content: flex-start; }
     .metrics, .grid-2, .grid-3 { grid-template-columns: 1fr; }
-    .grid-2, .grid-3 { gap: 40px; }
+    .grid-2, .grid-3 { gap: 24px; }
 }
 @media (max-width: 760px) {
     .route { grid-template-columns: 52px 1fr; }
@@ -805,3 +811,30 @@ button.nav-item:hover { color: var(--ink); }
 .politica .prose + ul { margin-top: 10px; }
 .politica ul { list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .politica .verbete-titulo { margin-bottom: 10px; }
+
+/* Novidades. O tipo é etiqueta de texto, sem cor: a única cor do painel fica
+   para o número principal, e aqui ela só marca o que ainda não foi visto. */
+.novidade-tipo {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase;
+    color: var(--muted); border: 1px solid var(--line); padding: 2px 7px;
+}
+.novidade { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; }
+.novidade-quando { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding-top: 3px; }
+.novidade-titulo { font-size: 17px; font-weight: 500; letter-spacing: -0.2px; }
+
+/* Conta: senha de um lado; sessões e exclusão, que são ações de um clique só,
+   empilhadas do outro. */
+.conta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.conta-coluna { display: flex; flex-direction: column; gap: 24px; }
+
+@media (max-width: 900px) {
+    .novidade { grid-template-columns: 1fr; gap: 14px; }
+    .novidade-quando { flex-direction: row; align-items: center; justify-content: space-between; }
+    .conta { grid-template-columns: 1fr; }
+}
+.novidade-itens { list-style: disc; padding-left: 20px; margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+.nav-ponto {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); margin-left: 8px; vertical-align: middle;
+}
