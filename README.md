@@ -72,11 +72,30 @@ duração. Períodos: hoje (por hora), 7, 30 e 90 dias (por dia).
   local (`geoip-lite`). Não é gravado nem enviado a terceiros.
 - Da URL, grava-se o caminho e os parâmetros `utm_*`. O restante da query
   string e o fragmento são descartados.
+- As visitas são apagadas automaticamente depois de 2 anos.
 
 ## Contas e sites
 
+- Cadastro aberto, só com o e-mail: a pessoa recebe um link e define a senha
+  nele. A conta só passa a existir quando o link é usado, então todo e-mail
+  cadastrado foi confirmado.
+- "Esqueci a senha" funciona do mesmo jeito. Cadastro e recuperação respondem
+  igual com ou sem conta, para não revelar quais e-mails estão cadastrados;
+  quem tenta se cadastrar com um e-mail que já tem conta recebe, por e-mail, o
+  link para redefinir a senha.
+- Os links valem uma vez (24 horas para criar conta, 30 minutos para trocar a
+  senha), pedir um novo invalida os anteriores, e o banco guarda só o hash do
+  token. Os e-mails são enviados pelo Resend.
 - Login por e-mail e senha (bcrypt), sessão em cookie `httpOnly` assinado com
-  JWT. O login tem limite de tentativas por IP e e-mail.
+  JWT. Trocar ou redefinir a senha encerra as sessões nos outros aparelhos, e a
+  tela de conta tem "sair de todos os aparelhos".
+- Login, troca de senha e pedidos de e-mail têm limite de tentativas.
+- A própria conta pode ser excluída pela tela de conta, com confirmação por
+  senha. A exclusão é definitiva: apaga o cadastro, os sites de que a conta é a
+  única dona e todos os eventos deles. Sites com outro dono continuam com ele.
+  Um e-mail confirma a exclusão.
+- A política de privacidade fica em `/privacidade`, aberta sem login, com link
+  nas telas de entrada e no menu do painel.
 - Uma conta pode ter vários sites e alternar entre eles pelo painel. Cada site
   tem papéis por conta: `owner` (configura) e `member` (só lê). Contas com
   `is_staff` veem todos os sites.
@@ -114,7 +133,8 @@ Requer Docker, Node e Python 3.
 
 Sobe o Postgres, aplica as migrações, cria um site e uma conta de teste e
 inicia o servidor (`:3002`), o painel (`:5173`) e a página de exemplo
-(`:8080`). Detalhes e solução de problemas em
+(`:8080`). Sem `RESEND_API_KEY`, os e-mails de conta são impressos no terminal
+do servidor, com o link. Detalhes e solução de problemas em
 [docs/como-rodar.md](docs/como-rodar.md).
 
 Testes do servidor:
@@ -134,12 +154,15 @@ e API ficam na mesma origem, com a API sob `/api`.
 | `DATABASE_URL` | sim | Conexão com o Postgres |
 | `JWT_SECRET` | sim | Assina a sessão do painel |
 | `VISITOR_SALT` | sim | Sal do hash de visitante. Trocá-lo faz todos os visitantes parecerem novos |
+| `RESEND_API_KEY` | sim | Chave do Resend para os e-mails de conta |
+| `EMAIL_FROM` | sim | Remetente, num domínio verificado no Resend |
+| `APP_URL` | sim | Endereço público do painel, base dos links enviados por e-mail |
 | `TRUST_PROXY` | atrás de proxy | Número de proxies confiáveis, para obter o IP real do visitante |
 | `DATABASE_SSL` | não | `true` quando o banco exige TLS |
 | `DASHBOARD_ORIGIN` | não | Origem do painel, para CORS, se estiver em outro domínio |
 | `SITE_TIMEZONE` | não | Fuso do dia nos gráficos e na identidade do visitante. Padrão `America/Sao_Paulo` |
 
-Sem as três obrigatórias, o servidor não sobe em produção. Modelo completo em
+Sem as obrigatórias, o servidor não sobe em produção. Modelo completo em
 [.env.example](.env.example).
 
 `GET /health` responde `200` com o banco acessível e `503` sem ele.

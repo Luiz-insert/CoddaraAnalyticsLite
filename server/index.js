@@ -5,10 +5,11 @@ import cookieParser from 'cookie-parser';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { query, findSiteByToken, insertEvents, createUser, findUserByEmail, listSitesForUser, findSiteForUser, createSiteForUser, userHasDomain, setSiteActive, renameSite, markVerifiedBySnippet, recordRejection, listRejections } from './db.js';
+import { query, findSiteByToken, insertEvents, findUserByEmail, issueAuthToken, peekAuthToken, redeemAuthToken, changePassword, endAllSessions, deleteAccount, purgeOldEvents, listSitesForUser, findSiteForUser, createSiteForUser, userHasDomain, setSiteActive, renameSite, markVerifiedBySnippet, recordRejection, listRejections } from './db.js';
 import { overview, isPeriod } from './reports.js';
 import { localizar } from './geo.js';
-import { hashPassword, checkPassword, normalizeEmail, signToken, validateCredentials, requireAuth, SESSION_COOKIE, sessionCookie, limitarTentativas, limparTentativas } from './auth.js';
+import { hashPassword, checkPassword, normalizeEmail, signToken, validateEmail, validatePassword, newAuthToken, hashAuthToken, requireAuth, SESSION_COOKIE, sessionCookie, limitarTentativas, limparTentativas, limitarEnvioPorIp, podeEnviarPara, limitarTroca } from './auth.js';
+import { APP_URL, emailCadastro, emailContaExistente, emailRedefinir, emailSenhaAlterada, emailContaExcluida } from './email.js';
 import { toRows, normalizeDomain, isBot } from './parse.js';
 
 //Server config
@@ -215,22 +216,94 @@ const painel = express.Router();
 
 painel.use(dashboardCors);
 
-painel.post('/auth/register', async (req, res) => {
-    const problem = validateCredentials(req.body ?? {});
+// Validade dos links. O de cadastro é mais longo porque a pessoa pode abrir o
+// e-mail só no dia seguinte; o de senha é curto porque dá acesso a uma conta
+// que já tem dados.
+const MINUTOS = { signup: 24 * 60, reset: 30 };
+
+async function enviarLink({ purpose, email, modelo }) {
+    const { token, tokenHash } = newAuthToken();
+    await issueAuthToken({ purpose, email, tokenHash, minutes: MINUTOS[purpose] });
+    // Na query string e não num caminho: o painel é uma página só, e ler o
+    // parâmetro na abertura é tudo o que ele precisa para mostrar a tela certa.
+    await modelo({ to: email, link: `${APP_URL}/conta?token=${token}` });
+}
+
+// Cadastro e "esqueci a senha" respondem SEMPRE igual e ANTES de fazer
+// qualquer coisa. Igual, para a resposta não dizer se o e-mail tem conta; antes,
+// para o tempo de resposta também não dizer — consultar o banco e chamar o
+// Resend levam um tempo que só existe num dos casos.
+//
+// O que acontece depois só aparece no log e na caixa de entrada do dono.
+function emSegundoPlano(rotulo, trabalho) {
+    trabalho().catch((err) => console.error(`[auth] ${rotulo} falhou:`, err.message));
+}
+
+// Cadastro só com o e-mail. A senha é definida no link, e a conta só nasce lá:
+// não existe conta com e-mail não confirmado, nem conta criada no nome de
+// outra pessoa.
+painel.post('/auth/register', limitarEnvioPorIp, (req, res) => {
+    const problem = validateEmail(req.body?.email);
     if (problem) return res.status(400).json({ error: problem });
 
     const email = normalizeEmail(req.body.email);
+    res.status(202).json({ ok: true });
 
-    try {
-        const user = await createUser({ email, passwordHash: await hashPassword(req.body.password) });
-        res.cookie(SESSION_COOKIE, signToken(user), sessionCookie);
-        res.status(201).json({ user: { id: user.id, email: user.email } });
-    } catch (err) {
-        // 23505 = violação de índice único, ou seja, e-mail já cadastrado.
-        if (err.code === '23505') return res.status(409).json({ error: 'E-mail já cadastrado.' });
-        console.error('[auth] falha no cadastro:', err.message);
-        res.status(500).json({ error: 'Não foi possível criar a conta.' });
-    }
+    emSegundoPlano('cadastro', async () => {
+        if (!podeEnviarPara(email)) return;
+
+        // E-mail que já tem conta recebe um link de redefinição, e não um erro
+        // na tela: quem tenta se cadastrar de novo quase sempre esqueceu que tinha
+        // conta — e a senha junto.
+        const existente = await findUserByEmail(email);
+        await (existente
+            ? enviarLink({ purpose: 'reset', email, modelo: emailContaExistente })
+            : enviarLink({ purpose: 'signup', email, modelo: emailCadastro }));
+    });
+});
+
+painel.post('/auth/forgot', limitarEnvioPorIp, (req, res) => {
+    const problem = validateEmail(req.body?.email);
+    if (problem) return res.status(400).json({ error: problem });
+
+    const email = normalizeEmail(req.body.email);
+    res.status(202).json({ ok: true });
+
+    emSegundoPlano('recuperação', async () => {
+        if (!podeEnviarPara(email)) return;
+        // Sem conta, nada é enviado: mandar "você não tem conta" para um
+        // endereço qualquer transformaria o formulário em disparador de e-mail.
+        if (!(await findUserByEmail(email))) return;
+        await enviarLink({ purpose: 'reset', email, modelo: emailRedefinir });
+    });
+});
+
+// O que este link faz, sem usá-lo. Só quem tem o link chega aqui, então
+// devolver o e-mail não revela nada que a pessoa já não tenha na caixa de entrada.
+painel.get('/auth/token', async (req, res) => {
+    const token = typeof req.query.token === 'string' ? req.query.token : '';
+    const info = token ? await peekAuthToken(hashAuthToken(token)) : null;
+    if (!info) return res.status(410).json({ error: 'Este link expirou ou já foi usado. Peça outro.' });
+    res.json(info);
+});
+
+// Usa o link: define a senha e já entra. Serve aos dois propósitos — no
+// cadastro, a conta nasce aqui; na redefinição, as outras sessões caem aqui.
+painel.post('/auth/token', async (req, res) => {
+    const problem = validatePassword(req.body?.password);
+    if (problem) return res.status(400).json({ error: problem });
+
+    const token = typeof req.body?.token === 'string' ? req.body.token : '';
+    if (!token) return res.status(410).json({ error: 'Este link expirou ou já foi usado. Peça outro.' });
+
+    const user = await redeemAuthToken({
+        tokenHash: hashAuthToken(token),
+        passwordHash: await hashPassword(req.body.password),
+    });
+    if (!user) return res.status(410).json({ error: 'Este link expirou ou já foi usado. Peça outro.' });
+
+    res.cookie(SESSION_COOKIE, signToken(user), sessionCookie);
+    res.json({ user: { id: user.id, email: user.email } });
 });
 
 painel.post('/auth/login', limitarTentativas, async (req, res) => {
@@ -280,7 +353,54 @@ painel.post('/auth/logout', (req, res) => {
 });
 
 painel.get('/me', requireAuth, (req, res) => {
-    res.json({ id: req.user.id, isStaff: req.user.isStaff });
+    res.json({ id: req.user.id, email: req.user.email, isStaff: req.user.isStaff });
+});
+
+// Troca de senha com a sessão aberta. Pede a atual: uma sessão esquecida num
+// computador alheio não pode servir para tomar a conta.
+painel.post('/auth/password', requireAuth, limitarTroca, async (req, res) => {
+    const problem = validatePassword(req.body?.password);
+    if (problem) return res.status(400).json({ error: problem });
+
+    const atual = await findUserByEmail(req.user.email);
+    if (!atual || !(await checkPassword(String(req.body?.current ?? ''), atual.password_hash))) {
+        return res.status(400).json({ error: 'A senha atual não confere.' });
+    }
+
+    const user = await changePassword({ userId: req.user.id, passwordHash: await hashPassword(req.body.password) });
+
+    // As outras sessões caíram com a versão nova; esta recebe um cookie novo
+    // para continuar aberta.
+    res.cookie(SESSION_COOKIE, signToken(user), sessionCookie);
+    res.status(204).end();
+
+    emSegundoPlano('aviso de troca de senha', () => emailSenhaAlterada({ to: user.email }));
+});
+
+painel.post('/auth/logout-all', requireAuth, async (req, res) => {
+    await endAllSessions(req.user.id);
+    res.clearCookie(SESSION_COOKIE, sessionCookie);
+    res.status(204).end();
+});
+
+// Excluir a conta e tudo o que é dela. Pede a senha pelo mesmo motivo da troca:
+// uma sessão esquecida aberta não pode bastar para destruir os dados de alguém.
+// O limite de tentativas é o mesmo, para a confirmação não virar um oráculo.
+painel.delete('/me', requireAuth, limitarTroca, async (req, res) => {
+    const atual = await findUserByEmail(req.user.email);
+    if (!atual || !(await checkPassword(String(req.body?.password ?? ''), atual.password_hash))) {
+        return res.status(400).json({ error: 'A senha não confere.' });
+    }
+
+    const apagado = await deleteAccount(req.user.id);
+    if (!apagado) return res.status(404).json({ error: 'Conta não encontrada.' });
+
+    console.log(`[auth] conta ${req.user.id} excluída a pedido, com ${apagado.sites} site(s)`);
+    res.clearCookie(SESSION_COOKIE, sessionCookie);
+    res.status(204).end();
+
+    // Comprovante para o titular: é a resposta formal ao pedido de eliminação.
+    emSegundoPlano('aviso de exclusão', () => emailContaExcluida({ to: apagado.email, sites: apagado.sites }));
 });
 
 painel.get('/sites', requireAuth, async (req, res) => {
@@ -384,3 +504,18 @@ if (existsSync(PAINEL)) {
 app.listen(PORT, () => {
     console.log(`Ingest ouvindo em http://localhost:${PORT}`);
 });
+
+// Apaga as visitas que passaram do prazo de retenção: na subida e uma vez por
+// dia. Na subida também, porque um deploy por dia reiniciaria o relógio antes
+// de ele chegar a disparar.
+async function aplicarRetencao() {
+    try {
+        const apagados = await purgeOldEvents();
+        if (apagados > 0) console.log(`[retencao] ${apagados} evento(s) antigo(s) apagado(s)`);
+    } catch (err) {
+        console.error('[retencao] falhou:', err.message);
+    }
+}
+
+aplicarRetencao();
+setInterval(aplicarRetencao, 24 * 60 * 60 * 1000).unref();

@@ -18,12 +18,18 @@ const GRUPOS = [
     },
     {
         titulo: 'Sessão',
-        nota: 'Define o cookie httpOnly usado pelo painel. O login aceita seis tentativas por e-mail a cada dez minutos; acima disso responde 429 com Retry-After.',
+        nota: 'Define o cookie httpOnly usado pelo painel. O login aceita seis tentativas por e-mail a cada dez minutos; acima disso responde 429 com Retry-After. Cadastro e recuperação respondem 202 sempre, com ou sem conta, e mandam o link por e-mail.',
         rotas: [
-            ['POST', '/auth/register', 'Cria conta.'],
+            ['POST', '/auth/register', 'Envia o link de criação de conta. Corpo: { email }.'],
+            ['POST', '/auth/forgot', 'Envia o link de nova senha. Corpo: { email }.'],
+            ['GET', '/auth/token', 'O que um link faz e para qual e-mail. Aceita token=. 410 se expirou ou foi usado.'],
+            ['POST', '/auth/token', 'Usa o link: define a senha e já entra. Corpo: { token, password }.'],
             ['POST', '/auth/login', 'Autentica e define o cookie.'],
+            ['POST', '/auth/password', 'Troca a senha e encerra as outras sessões. Corpo: { current, password }.'],
             ['POST', '/auth/logout', 'Limpa o cookie.'],
+            ['POST', '/auth/logout-all', 'Encerra a sessão em todos os aparelhos.'],
             ['GET', '/me', 'Quem está autenticado.'],
+            ['DELETE', '/me', 'Exclui a conta e os sites de que ela é a única dona, com todos os eventos. Corpo: { password }.'],
         ],
     },
     {

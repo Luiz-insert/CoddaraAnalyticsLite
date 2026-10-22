@@ -72,22 +72,214 @@ export async function insertEvents(rows) {
     return rowCount;
 }
 
-export async function createUser({ email, passwordHash }) {
-    const { rows } = await query(
-        'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, is_staff',
-        [email, passwordHash],
-    );
-    return rows[0];
+// Retenção das visitas: dois anos. A política de privacidade promete este
+// prazo; mudar aqui é mudar lá.
+//
+// Em lotes, para não segurar um lock longo na tabela mais quente do sistema
+// enquanto o ingest tenta gravar. Devolve quantas linhas saíram.
+export const RETENCAO_EVENTOS = '2 years';
+
+export async function purgeOldEvents() {
+    let total = 0;
+    for (;;) {
+        const { rowCount } = await query(
+            `DELETE FROM events
+              WHERE id IN (SELECT id FROM events
+                            WHERE occurred_at < now() - $1::interval
+                            LIMIT 5000)`,
+            [RETENCAO_EVENTOS],
+        );
+        total += rowCount;
+        if (rowCount < 5000) return total;
+    }
+}
+
+const USER_FIELDS = 'id, email, is_staff, session_version';
+
+export async function findUserById(id) {
+    if (!/^\d+$/.test(String(id))) return null;
+    const { rows } = await query(`SELECT ${USER_FIELDS} FROM users WHERE id = $1`, [id]);
+    return rows[0] || null;
 }
 
 export async function findUserByEmail(email) {
     // lower() dos dois lados para casar com o índice único e com qualquer
     // linha que tenha entrado antes da normalização existir.
     const { rows } = await query(
-        'SELECT id, email, password_hash, is_staff FROM users WHERE lower(email) = lower($1)',
+        `SELECT ${USER_FIELDS}, password_hash FROM users WHERE lower(email) = lower($1)`,
         [email],
     );
     return rows[0] || null;
+}
+
+// Emite um link e invalida os anteriores do mesmo e-mail e propósito: quem
+// pede "esqueci a senha" três vezes tem só o último e-mail funcionando, e um
+// link antigo esquecido numa caixa de entrada deixa de ser uma porta aberta.
+export async function issueAuthToken({ purpose, email, tokenHash, minutes }) {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query(
+            `UPDATE auth_tokens SET used_at = now()
+              WHERE lower(email) = lower($1) AND purpose = $2 AND used_at IS NULL`,
+            [email, purpose],
+        );
+        await client.query(
+            `INSERT INTO auth_tokens (purpose, email, token_hash, expires_at)
+                  VALUES ($1, $2, $3, now() + make_interval(mins => $4))`,
+            [purpose, email, tokenHash, minutes],
+        );
+        // Faxina de carona: link vencido há uma semana não serve para nada e
+        // guarda um e-mail — inclusive de quem pediu cadastro e nunca concluiu,
+        // que não tem conta para excluir. A política de privacidade promete
+        // este prazo; mudar aqui é mudar lá.
+        await client.query("DELETE FROM auth_tokens WHERE expires_at < now() - interval '7 days'");
+        await client.query('COMMIT');
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
+// Só lê: a tela de definir senha pergunta antes para saber o que mostrar
+// ("criar conta para x" ou "nova senha para x") e para avisar do link vencido
+// antes de a pessoa digitar a senha duas vezes à toa.
+export async function peekAuthToken(tokenHash) {
+    const { rows } = await query(
+        `SELECT purpose, email FROM auth_tokens
+          WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()`,
+        [tokenHash],
+    );
+    return rows[0] || null;
+}
+
+// Usa o link e aplica a senha, tudo ou nada. Consumir o token no mesmo UPDATE
+// que confere a validade é o que impede dois cliques simultâneos de usarem o
+// mesmo link duas vezes: só um deles encontra used_at ainda nulo.
+//
+// Devolve o usuário, ou null se o link não vale mais.
+export async function redeemAuthToken({ tokenHash, passwordHash }) {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const { rows: [token] } = await client.query(
+            `UPDATE auth_tokens SET used_at = now()
+              WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+          RETURNING purpose, email`,
+            [tokenHash],
+        );
+        if (!token) {
+            await client.query('ROLLBACK');
+            return null;
+        }
+
+        // Os dois propósitos terminam no mesmo lugar: uma conta com esta senha.
+        // O ON CONFLICT cobre o cadastro de um e-mail que ganhou conta entre o
+        // pedido e o clique — o link provou a posse do e-mail do mesmo jeito,
+        // então definir a senha é o resultado certo, não um erro.
+        //
+        // session_version sobe nos dois casos de conta existente: redefinir a
+        // senha precisa expulsar quem estiver usando a antiga.
+        const { rows: [user] } = await client.query(
+            `INSERT INTO users (email, password_hash) VALUES ($1, $2)
+             ON CONFLICT ((lower(email)))
+             DO UPDATE SET password_hash = EXCLUDED.password_hash,
+                           session_version = users.session_version + 1
+             RETURNING ${USER_FIELDS}`,
+            [token.email, passwordHash],
+        );
+
+        // O outro tipo de link do mesmo e-mail também morre: definida a senha,
+        // um link de cadastro ou de redefinição ainda pendente não tem mais
+        // propósito e só serviria a quem o interceptasse.
+        await client.query(
+            `UPDATE auth_tokens SET used_at = now()
+              WHERE lower(email) = lower($1) AND used_at IS NULL`,
+            [token.email],
+        );
+
+        await client.query('COMMIT');
+        return user;
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
+export async function changePassword({ userId, passwordHash }) {
+    const { rows } = await query(
+        `UPDATE users SET password_hash = $2, session_version = session_version + 1
+          WHERE id = $1 RETURNING ${USER_FIELDS}`,
+        [userId, passwordHash],
+    );
+    return rows[0] || null;
+}
+
+export async function endAllSessions(userId) {
+    await query('UPDATE users SET session_version = session_version + 1 WHERE id = $1', [userId]);
+}
+
+// Exclusão da conta a pedido do titular (LGPD, art. 18, VI). Apaga de verdade,
+// sem "desligar": aqui o pedido é justamente não guardar mais nada.
+//
+// Vão junto os sites de que a conta é a ÚNICA dona, com todos os eventos. Site
+// que tem outro dono fica com ele — a conta só perde o acesso. Apagar o site de
+// um sócio porque o outro saiu seria destruir dado que não é só de quem pediu.
+//
+// Tudo numa transação: falha no meio não deixa conta sem site nem site órfão.
+export async function deleteAccount(userId) {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const { rows: [user] } = await client.query(
+            'SELECT email FROM users WHERE id = $1 FOR UPDATE',
+            [userId],
+        );
+        if (!user) {
+            await client.query('ROLLBACK');
+            return null;
+        }
+
+        const { rows: proprios } = await client.query(
+            `SELECT us.site_id AS id
+               FROM user_sites us
+              WHERE us.user_id = $1 AND us.role = 'owner'
+                AND NOT EXISTS (
+                    SELECT 1 FROM user_sites outro
+                     WHERE outro.site_id = us.site_id
+                       AND outro.user_id <> $1
+                       AND outro.role = 'owner')`,
+            [userId],
+        );
+        const ids = proprios.map((s) => s.id);
+
+        // Eventos antes do site: a chave de events não tem CASCADE de propósito,
+        // para nenhum DELETE de site levar o histórico por acidente. Aqui é
+        // intenção, então é explícito. user_sites e site_rejections caem pelo
+        // CASCADE deles.
+        await client.query('DELETE FROM events WHERE site_id = ANY($1::bigint[])', [ids]);
+        await client.query('DELETE FROM sites WHERE id = ANY($1::bigint[])', [ids]);
+
+        // Links de e-mail guardam o endereço; ficariam como rastro da conta.
+        await client.query('DELETE FROM auth_tokens WHERE lower(email) = lower($1)', [user.email]);
+
+        // O acesso aos sites de outros donos cai pelo CASCADE de user_sites.
+        await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
+        await client.query('COMMIT');
+        return { email: user.email, sites: ids.length };
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
 }
 
 const SITE_FIELDS = 's.id, s.name, s.domain, s.token, s.active, s.verified_at, s.verified_by';

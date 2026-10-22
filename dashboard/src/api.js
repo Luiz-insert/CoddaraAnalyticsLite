@@ -26,12 +26,33 @@ async function request(path, options = {}) {
 export const login = (email, password) =>
     request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 
-// O cadastro já devolve a sessão pronta: o servidor grava o cookie na mesma
-// resposta. Quem acabou de criar a conta não digita a senha duas vezes.
-export const register = (email, password) =>
-    request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+// Cadastro e recuperação só pedem o e-mail: a resposta é sempre a mesma, e o
+// que acontece depois chega por e-mail. A senha é definida no link.
+export const register = (email) =>
+    request('/auth/register', { method: 'POST', body: JSON.stringify({ email }) });
+
+export const forgotPassword = (email) =>
+    request('/auth/forgot', { method: 'POST', body: JSON.stringify({ email }) });
+
+// O que o link do e-mail faz (criar conta ou trocar senha) e para qual e-mail.
+export const peekToken = (token) => request(`/auth/token?token=${encodeURIComponent(token)}`);
+
+// Usa o link: a resposta já traz o cookie de sessão.
+export const redeemToken = (token, password) =>
+    request('/auth/token', { method: 'POST', body: JSON.stringify({ token, password }) });
+
+export const changePassword = (current, password) =>
+    request('/auth/password', { method: 'POST', body: JSON.stringify({ current, password }) });
+
+export const getMe = () => request('/me');
 
 export const logout = () => request('/auth/logout', { method: 'POST' });
+
+export const logoutAll = () => request('/auth/logout-all', { method: 'POST' });
+
+// Apaga a conta e os sites de que ela é a única dona, com todos os eventos.
+export const deleteAccount = (password) =>
+    request('/me', { method: 'DELETE', body: JSON.stringify({ password }) });
 
 export const listSites = () => request('/sites');
 

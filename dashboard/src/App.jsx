@@ -8,10 +8,30 @@ import Overview, { PeriodPicker } from './Overview.jsx';
 import Api from './Api.jsx';
 import Desempenho from './Desempenho.jsx';
 import ComoFunciona from './ComoFunciona.jsx';
+import DefinirSenha from './DefinirSenha.jsx';
+import Conta from './Conta.jsx';
+import Privacidade, { TextoPolitica } from './Privacidade.jsx';
 import { listSites, logout, getOverview, getRejections } from './api.js';
 import { NavegacaoContext } from './navegacao.js';
 
+// O token dos links de e-mail chega como ?token=. Lido uma vez, na carga do
+// módulo, e tirado do endereço na hora: assim ele não fica no histórico do
+// navegador, não vai junto se a pessoa copiar a URL e não sobrevive a um F5.
+function tokenDoLink() {
+    const token = new URLSearchParams(globalThis.location.search).get('token');
+    if (token) globalThis.history.replaceState(null, '', '/');
+    return token;
+}
+
+const TOKEN_DO_LINK = tokenDoLink();
+
+// A política é a única página com endereço próprio: ela é lida por quem não tem
+// conta e é linkada de fora, então precisa abrir direto, sem passar pelo login.
+const PAGINA_PRIVACIDADE = globalThis.location.pathname.replace(/\/+$/, '') === '/privacidade';
+
 export default function App() {
+    // Presente, a tela é a de definir senha, com ou sem sessão aberta.
+    const [linkToken, setLinkToken] = useState(TOKEN_DO_LINK);
     // null = não sabemos se há sessão; [] = tem sessão e nenhum site ainda.
     // Os dois estados levam a telas diferentes, e distingui-los é o que impede
     // o painel de mandar para o login quem só ainda não cadastrou nada.
@@ -79,14 +99,19 @@ export default function App() {
         load().catch(() => {}).finally(() => setChecking(false));
     }, [load]);
 
+    // Site que nunca recebeu evento. Vem da verificação, que o primeiro evento
+    // aceito marca, e não dos pageviews do período: em "Hoje", um site instalado
+    // há meses e sem visita desde a meia-noite também tem zero, e cairia na
+    // instalação como se a tag tivesse sumido.
+    const aguardando = Boolean(site) && !site.verified_at;
+
     // A tela de instalação promete trocar sozinha quando o primeiro evento
     // chegar. Isto é o que cumpre a promessa.
-    const vazio = data?.totals.pageviews === 0;
     useEffect(() => {
-        if (!vazio) return undefined;
+        if (!aguardando) return undefined;
         timer.current = setInterval(() => { load().catch(() => {}); }, 5000);
         return () => clearInterval(timer.current);
-    }, [vazio, load]);
+    }, [aguardando, load]);
 
     async function handleLogout() {
         await logout().catch(() => {});
@@ -112,6 +137,18 @@ export default function App() {
         setView(null);
     }
 
+    if (PAGINA_PRIVACIDADE) return <Privacidade />;
+
+    if (linkToken) {
+        return (
+            <DefinirSenha
+                token={linkToken}
+                onDone={async () => { setLinkToken(null); await load(); }}
+                onCancel={() => setLinkToken(null)}
+            />
+        );
+    }
+
     if (checking) return null;
     if (!sites) return <Login onDone={load} />;
 
@@ -123,10 +160,11 @@ export default function App() {
     // exatamente o que deixou passar o render intermediário.
     if (!site || !data) return null;
 
-    // Sem dado, a instalação é o que interessa. Com dado, o painel — mas a
+    // Sem nenhum evento ainda, a instalação é o que interessa. Depois disso, o
+    // painel — mesmo num período sem visitas, que mostra "sem dados" — e a
     // instalação continua alcançável pela barra lateral: depois de instalado
     // ainda se volta lá para copiar o snippet de outra página ou ver o token.
-    const atual = view ?? (vazio ? 'install' : 'overview');
+    const atual = view ?? (aguardando ? 'install' : 'overview');
 
     const irParaAjuda = (termo) => {
         setAlvoAjuda(termo);
@@ -174,6 +212,16 @@ export default function App() {
                     novo={novo}
                     onNovo={setNovo}
                 />
+            </Shell>
+        ),
+        privacidade: () => (
+            <Shell {...comum} title="Política de privacidade">
+                <TextoPolitica />
+            </Shell>
+        ),
+        conta: () => (
+            <Shell {...comum} title="Conta">
+                <Conta onLoggedOut={handleLogout} />
             </Shell>
         ),
         install: () => (

@@ -5,8 +5,8 @@ import { useColorMode } from './colorMode.js';
 
 const SECTIONS = [
     { label: 'Relatórios', items: [['overview', 'Visão geral'], ['perf', 'Desempenho']] },
-    { label: 'Configuração', items: [['sites', 'Sites'], ['install', 'Instalação'], ['api', 'API']] },
-    { label: 'Ajuda', items: [['ajuda', 'Como funciona']] },
+    { label: 'Configuração', items: [['sites', 'Sites'], ['install', 'Instalação'], ['api', 'API'], ['conta', 'Conta']] },
+    { label: 'Ajuda', items: [['ajuda', 'Como funciona'], ['privacidade', 'Privacidade']] },
 ];
 
 // Layout das telas autenticadas. A navegação é estado em memória, não rota de
