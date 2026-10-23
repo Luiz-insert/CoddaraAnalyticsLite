@@ -48,15 +48,23 @@ export function Moldura({ children, largura = 396, rodape = true }) {
         <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', p: 3 }}>
             <Stack spacing={3.5} sx={{ width: '100%', maxWidth: largura }}>
 
-                <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center">
+                {/* Grade de duas colunas: o ícone na linha do nome, e o
+                    'Analytics' embaixo do nome, com o vazio sob o ícone. O
+                    bloco encolhe ao conteúdo e vai para o eixo do card. */}
+                <Box sx={{
+                    alignSelf: 'center',
+                    display: 'grid',
+                    gridTemplateColumns: 'auto auto',
+                    columnGap: 1.5,
+                    alignItems: 'center',
+                }}>
                     <Box className="brand-mark"><BrandMark /></Box>
-                    <Box>
-                        <Typography variant="h3" lineHeight={1.2}>Coddara</Typography>
-                        <Typography variant="overline" color="text.disabled" letterSpacing={1.5}>
-                            Analytics
-                        </Typography>
-                    </Box>
-                </Stack>
+                    <Typography variant="h3" lineHeight={1.2}>Coddara</Typography>
+                    <Box />
+                    <Typography variant="overline" component="div" color="text.disabled" letterSpacing={1.5}>
+                        Analytics
+                    </Typography>
+                </Box>
 
                 {children}
 
