@@ -399,9 +399,16 @@ button.nav-item:hover { color: var(--ink); }
     border: 1px solid var(--line);
 }
 
-.spin { display: flex; animation: spin 6s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+/* A marca se desenha e se apaga em loop: o sinal que ainda não chegou. Girar
+   não serve mais — a onda não tem centro. */
+.sinal { display: flex; }
+.sinal path { stroke-dasharray: 1; animation: sinal 2.4s ease-in-out infinite; }
+@keyframes sinal {
+    0%   { stroke-dashoffset: 1; }
+    50%  { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: -1; }
+}
+@media (prefers-reduced-motion: reduce) { .sinal path { animation: none; } }
 
 /* ─── Visão geral ────────────────────────────────────────────── */
 

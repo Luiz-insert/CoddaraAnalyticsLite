@@ -74,7 +74,7 @@ export default function Install({ site, rejections = [] }) {
                             Esta tela troca sozinha assim que o primeiro acesso chegar. Pode deixar aberta.
                         </p>
                         <div className="waiting">
-                            <span className="spin"><BrandMark size={14} /></span>
+                            <span className="sinal"><BrandMark size={14} /></span>
                             <span className="mono-muted">Aguardando primeiro evento</span>
                         </div>
                     </>
